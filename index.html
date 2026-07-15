@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema de Mercadinho</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+    <!-- ============================================
+    HEADER
+    ============================================ -->
+    <header class="header">
+        <h1>
+            <span>🛒</span> Mercadinho <span style="font-size:0.8rem;font-weight:400;color:#a5d6a7;">Sistema de Gestão</span>
+        </h1>
+        <div class="header-actions">
+            <button onclick="navegar('dashboard')" id="nav-dashboard">📊 Dashboard</button>
+            <button onclick="navegar('estoque')" id="nav-estoque">📦 Estoque</button>
+            <button onclick="navegar('vendas')" id="nav-vendas">💰 Vendas</button>
+            <button onclick="navegar('notas')" id="nav-notas">🧾 Notas Fiscais</button>
+            <button class="btn-danger" onclick="exportarDados()">💾 Exportar</button>
+        </div>
+    </header>
+
+    <!-- ============================================
+    CONTAINER PRINCIPAL
+    ============================================ -->
+    <div class="container">
+
+        <!-- ALERTAS GLOBAIS -->
+        <div id="alertGlobal" class="alert"></div>
+
+        <!-- ==========================================
+        PÁGINA: DASHBOARD
+        ========================================== -->
+        <div id="page-dashboard" class="page active">
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">📊 Resumo do Mercadinho</div>
+                    <div id="resumo-dashboard">
+                        <p><strong>Total de Produtos:</strong> <span id="total-produtos">0</span></p>
+                        <p><strong>Produtos com Estoque Baixo:</strong> <span id="total-baixo">0</span></p>
+                        <p><strong>Vendas Realizadas:</strong> <span id="total-vendas">0</span></p>
+                        <p><strong>Notas Fiscais Emitidas:</strong> <span id="total-notas">0</span></p>
+                    </div>
+                    <div style="margin-top:16px;">
+                        <button class="btn btn-primary btn-sm" onclick="navegar('estoque')">Gerenciar Estoque</button>
+                        <button class="btn btn-secondary btn-sm" onclick="navegar('vendas')">Nova Venda</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">⚠️ Alertas de Estoque <span class="badge">Baixo</span></div>
+                    <div id="alertas-estoque">
+                        <p style="color:#888;">Carregando...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📦 Últimos Produtos Cadastrados</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nome</th>
+                                <th>Preço</th>
+                                <th>Quantidade</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ultimos-produtos">
+                            <tr class="empty-row"><td colspan="5">Nenhum produto cadastrado ainda.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+        PÁGINA: ESTOQUE
+        ========================================== -->
+        <div id="page-estoque" class="page">
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title" id="estoque-title">📦 Cadastrar Produto</div>
+                    <div id="alertEstoque" class="alert"></div>
+                    <form id="formProduto" onsubmit="salvarProduto(event)">
+                        <input type="hidden" id="edit-codigo" value="" />
+                        <div class="form-group">
+                            <label>Código do Produto</label>
+                            <div style="display:flex;gap:8px;">
+                                <input type="text" id="prod-codigo" placeholder="Ex: 123 ou QR Code" required style="flex:1;" />
+                                <button type="button" class="btn btn-info btn-sm" onclick="abrirScanner('prod-codigo')">📷 QR</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Nome do Produto</label>
+                            <input type="text" id="prod-nome" placeholder="Ex: Arroz 5kg" required />
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Preço (R$)</label>
+                                <input type="number" id="prod-preco" placeholder="0.00" step="0.01" min="0" required />
+                            </div>
+                            <div class="form-group">
+                                <label>Quantidade em Estoque</label>
+                                <input type="number" id="prod-qtd" placeholder="0" min="0" required />
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <button type="submit" class="btn btn-primary" id="btn-salvar-produto">➕ Cadastrar</button>
+                            <button type="button" class="btn btn-outline" onclick="limparFormProduto()">🗑️ Limpar</button>
+                            <button type="button" class="btn btn-danger" id="btn-excluir-produto" style="display:none;" onclick="excluirProduto()">❌ Excluir</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">📋 Estoque Atual <span class="badge" id="qtd-produtos">0</span></div>
+                    <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                        <input type="text" id="filtro-estoque" placeholder="🔍 Filtrar por nome ou código..." style="flex:1;padding:8px 14px;border-radius:8px;border:2px solid var(--border);background:var(--bg-input);color:var(--text-light);" />
+                        <button class="btn btn-sm btn-outline" onclick="renderizarEstoque()">🔄 Atualizar</button>
+                    </div>
+                    <div class="table-wrapper" style="max-height:400px;overflow-y:auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Nome</th>
+                                    <th>Preço</th>
+                                    <th>Qtd</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-estoque">
+                                <tr class="empty-row"><td colspan="6">Nenhum produto no estoque.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+        PÁGINA: VENDAS
+        ========================================== -->
+        <div id="page-vendas" class="page">
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">💰 Nova Venda</div>
+                    <div id="alertVenda" class="alert"></div>
+                    <form id="formVenda" onsubmit="finalizarVenda(event)">
+                        <div class="form-group">
+                            <label>Cliente</label>
+                            <input type="text" id="venda-cliente" placeholder="Nome do cliente (opcional)" />
+                        </div>
+                        <div class="form-group">
+                            <label>Forma de Pagamento</label>
+                            <select id="venda-pagamento">
+                                <option value="Dinheiro">Dinheiro</option>
+                                <option value="Cartão Débito">Cartão Débito</option>
+                                <option value="Cartão Crédito">Cartão Crédito</option>
+                                <option value="PIX">PIX</option>
+                                <option value="Transferência">Transferência</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Adicionar Item à Venda</label>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <input type="text" id="venda-codigo" placeholder="Código do produto" style="flex:2;min-width:120px;" />
+                                <input type="number" id="venda-qtd" placeholder="Qtd" value="1" min="1" style="flex:1;min-width:60px;" />
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="adicionarItemVenda()">➕ Adicionar</button>
+                                <button type="button" class="btn btn-info btn-sm" onclick="abrirScanner('venda-codigo')">📷 QR</button>
+                            </div>
+                        </div>
+                        <div class="table-wrapper" style="max-height:200px;overflow-y:auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Produto</th>
+                                        <th>Qtd</th>
+                                        <th>Subtotal</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabela-venda">
+                                    <tr class="empty-row"><td colspan="5">Nenhum item adicionado.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-top:12px;">
+                            <span style="font-size:1.2rem;font-weight:700;">
+                                Total: R$ <span id="venda-total">0.00</span>
+                            </span>
+                            <button type="submit" class="btn btn-primary">✅ Finalizar Venda</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">📋 Últimas Vendas</div>
+                    <div class="table-wrapper" style="max-height:450px;overflow-y:auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Cliente</th>
+                                    <th>Total</th>
+                                    <th>Data</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-vendas-rapidas">
+                                <tr class="empty-row"><td colspan="5">Nenhuma venda realizada.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+        PÁGINA: NOTAS FISCAIS
+        ========================================== -->
+        <div id="page-notas" class="page">
+            <div class="card">
+                <div class="card-title">🧾 Notas Fiscais Emitidas <span class="badge" id="qtd-notas">0</span></div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+                    <input type="text" id="filtro-notas" placeholder="🔍 Buscar por cliente ou produto..." style="flex:1;padding:8px 14px;border-radius:8px;border:2px solid var(--border);background:var(--bg-input);color:var(--text-light);" />
+                    <button class="btn btn-sm btn-outline" onclick="renderizarNotas()">🔄 Atualizar</button>
+                </div>
+                <div id="lista-notas">
+                    <p style="color:#888;">Nenhuma nota fiscal emitida ainda.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================================
+    MODAL: VISUALIZAR NOTA FISCAL
+    ============================================ -->
+    <div class="modal-overlay" id="modalNota">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>🧾 Nota Fiscal</h2>
+                <button class="modal-close" onclick="fecharModalNota()">✕</button>
+            </div>
+            <div id="conteudo-nota" style="background:#0a0a1a;padding:20px;border-radius:8px;font-family:monospace;font-size:0.9rem;white-space:pre-wrap;max-height:500px;overflow-y:auto;color:#a0a0a0;border:1px solid var(--border);">
+            </div>
+            <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+                <button class="btn btn-primary btn-sm" onclick="imprimirNota()">🖨️ Imprimir</button>
+                <button class="btn btn-secondary btn-sm" onclick="baixarNota()">💾 Baixar TXT</button>
+                <button class="btn btn-outline btn-sm" onclick="fecharModalNota()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+    MODAL: QR CODE SCANNER
+    ============================================ -->
+    <div class="modal-overlay" id="modalScanner">
+        <div class="modal" style="max-width:450px;">
+            <div class="modal-header">
+                <h2>📷 Leitor de QR Code</h2>
+                <button class="modal-close" onclick="fecharScanner()">✕</button>
+            </div>
+            <p style="margin-bottom:12px;color:#888;">Aponte a câmera para o código QR do produto.</p>
+            <div id="scanner-container">
+                <video id="scanner-video" autoplay playsinline></video>
+                <div class="scan-overlay">
+                    <div class="scan-corner tl"></div>
+                    <div class="scan-corner tr"></div>
+                    <div class="scan-corner bl"></div>
+                    <div class="scan-corner br"></div>
+                </div>
+            </div>
+            <div style="margin-top:12px;text-align:center;">
+                <button class="btn btn-danger btn-sm" onclick="fecharScanner()">Cancelar</button>
+            </div>
+            <p id="scanner-status" style="text-align:center;margin-top:8px;color:var(--info-light);">Aguardando leitura...</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
