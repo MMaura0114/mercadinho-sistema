@@ -188,11 +188,13 @@
                                 <input type="text" id="venda-busca" placeholder="🔍 Nome ou código do produto" style="flex:2;min-width:150px;" onkeyup="buscarProdutoVenda(event)" />
                                 <input type="number" id="venda-qtd" placeholder="Qtd" value="1" min="1" style="flex:1;min-width:60px;" />
                                 <button type="button" class="btn btn-secondary btn-sm" onclick="adicionarItemVenda()">➕ Adicionar</button>
-                                <button type="button" class="btn btn-info btn-sm" onclick="abrirScanner('venda-codigo')">📷 Scanner</button>
+                                <button type="button" class="btn btn-info btn-sm" onclick="abrirScanner('venda-busca')">📷 Scanner</button>
                             </div>
                             <!-- Sugestões de produtos -->
                             <div id="sugestoes-produtos" style="background:var(--bg-input);border-radius:8px;margin-top:4px;max-height:150px;overflow-y:auto;display:none;"></div>
                         </div>
+                        
+                        <input type="hidden" id="venda-codigo-scanner" />
 
                         <div class="table-wrapper" style="max-height:200px;overflow-y:auto;">
                             <table>

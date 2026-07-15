@@ -1,15 +1,6 @@
 /**
  * ============================================================
- * SISTEMA DE MERCADINHO - VERSÃO MELHORADA
- * ============================================================
- * Funcionalidades:
- * - CRUD de produtos com leitor de código (QR Code / Código de Barras)
- * - Busca de produtos por nome ou código na venda
- * - Cálculo de troco para pagamento em dinheiro
- * - Cálculo de juros para cartão de crédito
- * - Notas fiscais em PDF, PNG, JPG e TXT
- * - Relatórios semanais, mensais, anuais e personalizados
- * - Dashboard com faturamento total
+ * SISTEMA DE MERCADINHO - VERSÃO CORRIGIDA
  * ============================================================
  */
 
@@ -64,7 +55,10 @@ function navegar(pagina) {
 
     if (pagina === 'dashboard') atualizarDashboard();
     if (pagina === 'estoque') renderizarEstoque();
-    if (pagina === 'vendas') renderizarVendasRapidas();
+    if (pagina === 'vendas') {
+        renderizarVendasRapidas();
+        renderizarCarrinho();
+    }
     if (pagina === 'notas') renderizarNotas();
 
     fecharModalNota();
@@ -303,7 +297,7 @@ function buscarProdutoVenda(event) {
     const filtrados = produtos.filter(p =>
         p.nome.toLowerCase().includes(busca) ||
         p.codigo.toLowerCase().includes(busca)
-    ).slice(0, 8); // Limita a 8 sugestões
+    ).slice(0, 8);
 
     if (filtrados.length === 0) {
         sugestoes.style.display = 'none';
@@ -321,7 +315,6 @@ function buscarProdutoVenda(event) {
 function selecionarProdutoVenda(codigo) {
     document.getElementById('venda-busca').value = codigo;
     document.getElementById('sugestoes-produtos').style.display = 'none';
-    document.getElementById('venda-codigo').value = codigo;
     // Adicionar automaticamente
     adicionarItemVenda();
 }
@@ -330,9 +323,10 @@ function selecionarProdutoVenda(codigo) {
 // VENDAS
 // ============================================================
 function adicionarItemVenda() {
-    const codigo = document.getElementById('venda-busca').value.trim() || 
-                   document.getElementById('venda-codigo')?.value?.trim() || 
-                   document.getElementById('prod-codigo')?.value?.trim();
+    const codigoInput = document.getElementById('venda-busca').value.trim();
+    
+    // Se o campo estiver vazio, tentar pegar do scanner
+    let codigo = codigoInput || document.getElementById('venda-codigo-scanner')?.value?.trim();
     
     const qtd = parseInt(document.getElementById('venda-qtd').value) || 1;
 
@@ -351,6 +345,7 @@ function adicionarItemVenda() {
         );
         if (encontrado) {
             produto = encontrado;
+            codigo = encontrado.codigo;
         }
     }
 
@@ -364,19 +359,15 @@ function adicionarItemVenda() {
         return;
     }
 
-    if (qtd > produto.quantidade) {
-        mostrarAlertaVenda(`Estoque insuficiente! Disponível: ${produto.quantidade}`, 'danger');
-        return;
-    }
+    // REMOVIDA A VERIFICAÇÃO DE ESTOQUE - PODE VENDER MESMO COM ESTOQUE BAIXO
+    // if (qtd > produto.quantidade) {
+    //     mostrarAlertaVenda(`Estoque insuficiente! Disponível: ${produto.quantidade}`, 'danger');
+    //     return;
+    // }
 
     const existente = state.vendaAtual.itens.find(i => i.codigo === produto.codigo);
     if (existente) {
-        const novaQtd = existente.quantidade + qtd;
-        if (novaQtd > produto.quantidade) {
-            mostrarAlertaVenda(`Estoque insuficiente! Disponível: ${produto.quantidade}`, 'danger');
-            return;
-        }
-        existente.quantidade = novaQtd;
+        existente.quantidade += qtd;
         existente.subtotal = existente.quantidade * produto.preco;
     } else {
         state.vendaAtual.itens.push({
@@ -389,7 +380,7 @@ function adicionarItemVenda() {
     }
 
     document.getElementById('venda-busca').value = '';
-    document.getElementById('venda-codigo').value = '';
+    document.getElementById('venda-codigo-scanner').value = '';
     document.getElementById('venda-qtd').value = '1';
     document.getElementById('sugestoes-produtos').style.display = 'none';
     renderizarCarrinho();
@@ -439,7 +430,6 @@ function calcularTrocoJuros() {
     const campoJuros = document.getElementById('campo-juros');
     const campoTroco = document.getElementById('campo-troco');
 
-    // Mostrar campo de juros se for cartão de crédito
     if (pagamento === 'Cartão Crédito') {
         campoJuros.style.display = 'block';
         const juros = parseFloat(document.getElementById('venda-juros').value) || 0;
@@ -450,7 +440,6 @@ function calcularTrocoJuros() {
         document.getElementById('venda-total').textContent = total.toFixed(2);
     }
 
-    // Mostrar campo de troco se for dinheiro
     if (pagamento === 'Dinheiro') {
         campoTroco.style.display = 'block';
         const recebido = parseFloat(document.getElementById('venda-recebido').value) || 0;
@@ -489,37 +478,35 @@ function finalizarVenda(event) {
         return;
     }
 
-    // Verificar estoque
-    for (const item of itens) {
-        const produto = state.produtos[item.codigo];
-        if (!produto) {
-            mostrarAlertaVenda(`Produto "${item.codigo}" não encontrado!`, 'danger');
-            return;
-        }
-        if (item.quantidade > produto.quantidade) {
-            mostrarAlertaVenda(`Estoque insuficiente para "${produto.nome}"! Disponível: ${produto.quantidade}`, 'danger');
-            return;
-        }
-    }
+    // REMOVIDA A VERIFICAÇÃO DE ESTOQUE - PODE VENDER MESMO COM ESTOQUE BAIXO
+    // for (const item of itens) {
+    //     const produto = state.produtos[item.codigo];
+    //     if (!produto) {
+    //         mostrarAlertaVenda(`Produto "${item.codigo}" não encontrado!`, 'danger');
+    //         return;
+    //     }
+    //     if (item.quantidade > produto.quantidade) {
+    //         mostrarAlertaVenda(`Estoque insuficiente para "${produto.nome}"! Disponível: ${produto.quantidade}`, 'danger');
+    //         return;
+    //     }
+    // }
 
     let total = itens.reduce((acc, i) => acc + i.subtotal, 0);
 
-    // Aplicar juros se for cartão de crédito
     if (pagamento === 'Cartão Crédito') {
         const juros = parseFloat(document.getElementById('venda-juros').value) || 0;
         total = total * (1 + juros / 100);
     }
 
-    // Verificar troco para dinheiro
-    if (pagamento === 'Dinheiro') {
-        const recebido = parseFloat(document.getElementById('venda-recebido').value) || 0;
-        if (recebido < total) {
-            mostrarAlertaVenda(`Valor insuficiente! Total: R$ ${total.toFixed(2)}`, 'danger');
-            return;
-        }
-    }
+    // REMOVIDA A VERIFICAÇÃO DE VALOR MÍNIMO - PODE VENDER QUALQUER VALOR
+    // if (pagamento === 'Dinheiro') {
+    //     const recebido = parseFloat(document.getElementById('venda-recebido').value) || 0;
+    //     if (recebido < total) {
+    //         mostrarAlertaVenda(`Valor insuficiente! Total: R$ ${total.toFixed(2)}`, 'danger');
+    //         return;
+    //     }
+    // }
 
-    // Registrar venda
     state.ultimoIdVenda++;
     const venda = {
         id: state.ultimoIdVenda,
@@ -531,12 +518,13 @@ function finalizarVenda(event) {
     };
     state.vendas.push(venda);
 
-    // Atualizar estoque
+    // Atualizar estoque (mesmo que fique negativo)
     for (const item of itens) {
-        state.produtos[item.codigo].quantidade -= item.quantidade;
+        if (state.produtos[item.codigo]) {
+            state.produtos[item.codigo].quantidade -= item.quantidade;
+        }
     }
 
-    // Gerar nota fiscal
     state.ultimoIdNota++;
     const nota = {
         id: state.ultimoIdNota,
@@ -549,7 +537,6 @@ function finalizarVenda(event) {
     };
     state.notas.push(nota);
 
-    // Limpar carrinho
     state.vendaAtual.itens = [];
     document.getElementById('venda-cliente').value = '';
     document.getElementById('venda-recebido').value = '';
@@ -561,7 +548,6 @@ function finalizarVenda(event) {
     atualizarDashboard();
     renderizarEstoque();
 
-    // Exibir nota fiscal
     exibirNota(nota);
 
     mostrarAlertaVenda(`Venda finalizada! Total: R$ ${total.toFixed(2)}`, 'success');
@@ -698,7 +684,6 @@ function gerarPDFNotaPorIndex(index) {
     const nota = state.notas[index];
     if (!nota) return;
 
-    // Criar elemento temporário para o PDF
     const element = document.createElement('div');
     element.style.cssText = `
                 background: white;
@@ -731,7 +716,6 @@ function gerarPDFNotaPorIndex(index) {
 
     element.textContent = texto;
 
-    // Configurar opções do PDF
     const opt = {
         margin: 1,
         filename: `nota_fiscal_${nota.id}.pdf`,
@@ -740,7 +724,6 @@ function gerarPDFNotaPorIndex(index) {
         jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
 
-    // Gerar PDF
     html2pdf().set(opt).from(element).save();
 }
 
@@ -812,7 +795,6 @@ function gerarRelatorioPersonalizado() {
 function gerarRelatorioPorPeriodo(inicio, fim, tipo) {
     const resultado = document.getElementById('relatorio-resultado');
 
-    // Filtrar vendas no período
     const vendas = state.vendas.filter(v => {
         const data = new Date(v.data);
         return data >= inicio && data <= fim;
@@ -822,7 +804,6 @@ function gerarRelatorioPorPeriodo(inicio, fim, tipo) {
     const faturamento = vendas.reduce((acc, v) => acc + v.total, 0);
     const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
 
-    // Produtos mais vendidos
     const produtosVendidos = {};
     vendas.forEach(v => {
         v.itens.forEach(item => {
@@ -842,12 +823,10 @@ function gerarRelatorioPorPeriodo(inicio, fim, tipo) {
         .sort((a, b) => b.quantidade - a.quantidade)
         .slice(0, 5);
 
-    // Formatar período
     const periodoLabel = tipo === 'personalizado' 
         ? `${inicio.toLocaleDateString('pt-BR')} a ${fim.toLocaleDateString('pt-BR')}`
         : tipo.charAt(0).toUpperCase() + tipo.slice(1);
 
-    // Gerar HTML do relatório
     let html = `
                 <div class="card" style="background:var(--bg-card);border:2px solid var(--primary);">
                     <h3 style="color:var(--text-light);">📊 Relatório ${periodoLabel}</h3>
@@ -1027,10 +1006,9 @@ function detectarCodigo() {
                 document.getElementById('scanner-status').textContent = `✅ Código lido: ${codigo}`;
 
                 if (state.scannerCampoDestino) {
-                    document.getElementById(state.scannerCampoDestino).value = codigo;
-                    
-                    // Se for no estoque, carregar produto automaticamente
+                    // Para o campo de estoque
                     if (state.scannerCampoDestino === 'prod-codigo') {
+                        document.getElementById(state.scannerCampoDestino).value = codigo;
                         const produto = state.produtos[codigo];
                         if (produto) {
                             document.getElementById('prod-nome').value = produto.nome;
@@ -1046,14 +1024,16 @@ function detectarCodigo() {
                         }
                     }
                     
-                    // Se for na venda, adicionar item
-                    if (state.scannerCampoDestino === 'venda-codigo' || state.scannerCampoDestino === 'venda-busca') {
+                    // Para a venda
+                    if (state.scannerCampoDestino === 'venda-busca' || state.scannerCampoDestino === 'venda-codigo-scanner') {
+                        // Preencher o campo de busca com o código lido
+                        document.getElementById('venda-busca').value = codigo;
+                        // Buscar o produto e adicionar automaticamente
                         const produto = state.produtos[codigo];
                         if (produto) {
-                            document.getElementById('venda-busca').value = codigo;
                             adicionarItemVenda();
                         } else {
-                            // Buscar por nome
+                            // Buscar por nome (caso o código seja na verdade um nome)
                             const produtos = Object.values(state.produtos);
                             const encontrado = produtos.find(p => 
                                 p.nome.toLowerCase().includes(codigo.toLowerCase())
@@ -1141,7 +1121,6 @@ function init() {
     document.getElementById('filtro-estoque').addEventListener('input', renderizarEstoque);
     document.getElementById('filtro-notas').addEventListener('input', renderizarNotas);
 
-    // Evento para mostrar/esconder campo de troco
     document.getElementById('venda-pagamento').addEventListener('change', calcularTrocoJuros);
 
     atualizarDashboard();
