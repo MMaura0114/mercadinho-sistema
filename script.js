@@ -1,15 +1,15 @@
 /**
  * ============================================================
- * SISTEMA DE MERCADINHO - COMPLETO (JavaScript Puro)
+ * SISTEMA DE MERCADINHO - VERSÃO MELHORADA
  * ============================================================
  * Funcionalidades:
- * - CRUD de produtos (código, nome, preço, quantidade)
- * - Leitura de QR Code (via câmera)
- * - Vendas com múltiplos itens
- * - Notas fiscais com armazenamento
- * - Alertas de estoque (baixo, médio, alto)
- * - Dashboard com resumo
- * - Exportação de dados
+ * - CRUD de produtos com leitor de código (QR Code / Código de Barras)
+ * - Busca de produtos por nome ou código na venda
+ * - Cálculo de troco para pagamento em dinheiro
+ * - Cálculo de juros para cartão de crédito
+ * - Notas fiscais em PDF, PNG, JPG e TXT
+ * - Relatórios semanais, mensais, anuais e personalizados
+ * - Dashboard com faturamento total
  * ============================================================
  */
 
@@ -56,7 +56,7 @@ function salvarEstado() {
 }
 
 // ============================================================
-// NAVEGAÇÃO ENTRE PÁGINAS
+// NAVEGAÇÃO
 // ============================================================
 function navegar(pagina) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -72,7 +72,7 @@ function navegar(pagina) {
 }
 
 // ============================================================
-// ALERTAS GLOBAIS
+// ALERTAS
 // ============================================================
 function mostrarAlerta(mensagem, tipo = 'info', tempo = 5000) {
     const el = document.getElementById('alertGlobal');
@@ -113,11 +113,13 @@ function atualizarDashboard() {
     const baixo = produtos.filter(p => p.quantidade <= 5).length;
     const vendas = state.vendas.length;
     const notas = state.notas.length;
+    const faturamento = state.vendas.reduce((acc, v) => acc + v.total, 0);
 
     document.getElementById('total-produtos').textContent = total;
     document.getElementById('total-baixo').textContent = baixo;
     document.getElementById('total-vendas').textContent = vendas;
     document.getElementById('total-notas').textContent = notas;
+    document.getElementById('faturamento-total').textContent = faturamento.toFixed(2);
 
     const alertasDiv = document.getElementById('alertas-estoque');
     const alertas = produtos.filter(p => p.quantidade <= 5);
@@ -286,18 +288,72 @@ function excluirProdutoDireto(codigo) {
 }
 
 // ============================================================
-// VENDAS
+// BUSCA DE PRODUTOS NA VENDA (AUTOSSUGESTÃO)
 // ============================================================
-function adicionarItemVenda() {
-    const codigo = document.getElementById('venda-codigo').value.trim();
-    const qtd = parseInt(document.getElementById('venda-qtd').value) || 1;
+function buscarProdutoVenda(event) {
+    const busca = document.getElementById('venda-busca').value.trim().toLowerCase();
+    const sugestoes = document.getElementById('sugestoes-produtos');
 
-    if (!codigo) {
-        mostrarAlertaVenda('Informe o código do produto.', 'danger');
+    if (!busca || busca.length < 1) {
+        sugestoes.style.display = 'none';
         return;
     }
 
-    const produto = state.produtos[codigo];
+    const produtos = Object.values(state.produtos);
+    const filtrados = produtos.filter(p =>
+        p.nome.toLowerCase().includes(busca) ||
+        p.codigo.toLowerCase().includes(busca)
+    ).slice(0, 8); // Limita a 8 sugestões
+
+    if (filtrados.length === 0) {
+        sugestoes.style.display = 'none';
+        return;
+    }
+
+    sugestoes.style.display = 'block';
+    sugestoes.innerHTML = filtrados.map(p =>
+        `<div onclick="selecionarProdutoVenda('${p.codigo}')">
+                    ${p.codigo} - ${p.nome} (R$ ${p.preco.toFixed(2)}) - Estoque: ${p.quantidade}
+                </div>`
+    ).join('');
+}
+
+function selecionarProdutoVenda(codigo) {
+    document.getElementById('venda-busca').value = codigo;
+    document.getElementById('sugestoes-produtos').style.display = 'none';
+    document.getElementById('venda-codigo').value = codigo;
+    // Adicionar automaticamente
+    adicionarItemVenda();
+}
+
+// ============================================================
+// VENDAS
+// ============================================================
+function adicionarItemVenda() {
+    const codigo = document.getElementById('venda-busca').value.trim() || 
+                   document.getElementById('venda-codigo')?.value?.trim() || 
+                   document.getElementById('prod-codigo')?.value?.trim();
+    
+    const qtd = parseInt(document.getElementById('venda-qtd').value) || 1;
+
+    if (!codigo) {
+        mostrarAlertaVenda('Informe o código ou nome do produto.', 'danger');
+        return;
+    }
+
+    // Buscar produto por código ou nome
+    let produto = state.produtos[codigo];
+    if (!produto) {
+        // Buscar por nome
+        const produtos = Object.values(state.produtos);
+        const encontrado = produtos.find(p => 
+            p.nome.toLowerCase().includes(codigo.toLowerCase())
+        );
+        if (encontrado) {
+            produto = encontrado;
+        }
+    }
+
     if (!produto) {
         mostrarAlertaVenda(`Produto "${codigo}" não encontrado!`, 'danger');
         return;
@@ -313,7 +369,7 @@ function adicionarItemVenda() {
         return;
     }
 
-    const existente = state.vendaAtual.itens.find(i => i.codigo === codigo);
+    const existente = state.vendaAtual.itens.find(i => i.codigo === produto.codigo);
     if (existente) {
         const novaQtd = existente.quantidade + qtd;
         if (novaQtd > produto.quantidade) {
@@ -324,7 +380,7 @@ function adicionarItemVenda() {
         existente.subtotal = existente.quantidade * produto.preco;
     } else {
         state.vendaAtual.itens.push({
-            codigo: codigo,
+            codigo: produto.codigo,
             nome: produto.nome,
             preco: produto.preco,
             quantidade: qtd,
@@ -332,15 +388,19 @@ function adicionarItemVenda() {
         });
     }
 
+    document.getElementById('venda-busca').value = '';
     document.getElementById('venda-codigo').value = '';
     document.getElementById('venda-qtd').value = '1';
+    document.getElementById('sugestoes-produtos').style.display = 'none';
     renderizarCarrinho();
+    calcularTrocoJuros();
     mostrarAlertaVenda(`"${produto.nome}" adicionado!`, 'success');
 }
 
 function removerItemVenda(index) {
     state.vendaAtual.itens.splice(index, 1);
     renderizarCarrinho();
+    calcularTrocoJuros();
 }
 
 function renderizarCarrinho() {
@@ -370,18 +430,66 @@ function renderizarCarrinho() {
     document.getElementById('venda-total').textContent = total.toFixed(2);
 }
 
+// ============================================================
+// CÁLCULO DE TROCO E JUROS
+// ============================================================
+function calcularTrocoJuros() {
+    const pagamento = document.getElementById('venda-pagamento').value;
+    const total = state.vendaAtual.itens.reduce((acc, i) => acc + i.subtotal, 0);
+    const campoJuros = document.getElementById('campo-juros');
+    const campoTroco = document.getElementById('campo-troco');
+
+    // Mostrar campo de juros se for cartão de crédito
+    if (pagamento === 'Cartão Crédito') {
+        campoJuros.style.display = 'block';
+        const juros = parseFloat(document.getElementById('venda-juros').value) || 0;
+        const totalComJuros = total * (1 + juros / 100);
+        document.getElementById('venda-total').textContent = totalComJuros.toFixed(2);
+    } else {
+        campoJuros.style.display = 'none';
+        document.getElementById('venda-total').textContent = total.toFixed(2);
+    }
+
+    // Mostrar campo de troco se for dinheiro
+    if (pagamento === 'Dinheiro') {
+        campoTroco.style.display = 'block';
+        const recebido = parseFloat(document.getElementById('venda-recebido').value) || 0;
+        const totalFinal = parseFloat(document.getElementById('venda-total').textContent) || 0;
+        const troco = recebido - totalFinal;
+        const resultado = document.getElementById('resultado-troco');
+        if (recebido > 0) {
+            if (troco >= 0) {
+                resultado.innerHTML = `Troco: R$ ${troco.toFixed(2)} ✅`;
+                resultado.style.color = 'var(--primary-light)';
+            } else {
+                resultado.innerHTML = `Faltam: R$ ${Math.abs(troco).toFixed(2)} ❌`;
+                resultado.style.color = 'var(--danger-light)';
+            }
+        } else {
+            resultado.innerHTML = '';
+        }
+    } else {
+        campoTroco.style.display = 'none';
+        document.getElementById('resultado-troco').innerHTML = '';
+    }
+}
+
+// ============================================================
+// FINALIZAR VENDA
+// ============================================================
 function finalizarVenda(event) {
     event.preventDefault();
 
     const cliente = document.getElementById('venda-cliente').value.trim() || 'Cliente não informado';
     const pagamento = document.getElementById('venda-pagamento').value;
-    const itens = state.vendaAtual.itens;
+    let itens = state.vendaAtual.itens;
 
     if (itens.length === 0) {
         mostrarAlertaVenda('Adicione pelo menos um item à venda!', 'danger');
         return;
     }
 
+    // Verificar estoque
     for (const item of itens) {
         const produto = state.produtos[item.codigo];
         if (!produto) {
@@ -396,6 +504,22 @@ function finalizarVenda(event) {
 
     let total = itens.reduce((acc, i) => acc + i.subtotal, 0);
 
+    // Aplicar juros se for cartão de crédito
+    if (pagamento === 'Cartão Crédito') {
+        const juros = parseFloat(document.getElementById('venda-juros').value) || 0;
+        total = total * (1 + juros / 100);
+    }
+
+    // Verificar troco para dinheiro
+    if (pagamento === 'Dinheiro') {
+        const recebido = parseFloat(document.getElementById('venda-recebido').value) || 0;
+        if (recebido < total) {
+            mostrarAlertaVenda(`Valor insuficiente! Total: R$ ${total.toFixed(2)}`, 'danger');
+            return;
+        }
+    }
+
+    // Registrar venda
     state.ultimoIdVenda++;
     const venda = {
         id: state.ultimoIdVenda,
@@ -407,10 +531,12 @@ function finalizarVenda(event) {
     };
     state.vendas.push(venda);
 
+    // Atualizar estoque
     for (const item of itens) {
         state.produtos[item.codigo].quantidade -= item.quantidade;
     }
 
+    // Gerar nota fiscal
     state.ultimoIdNota++;
     const nota = {
         id: state.ultimoIdNota,
@@ -423,8 +549,11 @@ function finalizarVenda(event) {
     };
     state.notas.push(nota);
 
+    // Limpar carrinho
     state.vendaAtual.itens = [];
     document.getElementById('venda-cliente').value = '';
+    document.getElementById('venda-recebido').value = '';
+    document.getElementById('resultado-troco').innerHTML = '';
 
     salvarEstado();
     renderizarCarrinho();
@@ -432,6 +561,7 @@ function finalizarVenda(event) {
     atualizarDashboard();
     renderizarEstoque();
 
+    // Exibir nota fiscal
     exibirNota(nota);
 
     mostrarAlertaVenda(`Venda finalizada! Total: R$ ${total.toFixed(2)}`, 'success');
@@ -498,6 +628,7 @@ function renderizarNotas() {
                     <div style="margin-top:6px;">
                         <span class="status-badge status-alto">${n.pagamento}</span>
                         <button class="btn btn-info btn-sm" onclick="event.stopPropagation();exibirNotaPorIndex(${state.notas.indexOf(n)})">👁️ Ver</button>
+                        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();gerarPDFNotaPorIndex(${state.notas.indexOf(n)})">📄 PDF</button>
                     </div>
                 </div>
             `).join('');
@@ -552,7 +683,68 @@ function imprimirNota() {
     win.print();
 }
 
-function baixarNota() {
+// ============================================================
+// NOTA FISCAL EM PDF
+// ============================================================
+function gerarPDFNota() {
+    if (!notaAtualExibindo) {
+        mostrarAlerta('Nenhuma nota selecionada!', 'danger');
+        return;
+    }
+    gerarPDFNotaPorIndex(state.notas.indexOf(notaAtualExibindo));
+}
+
+function gerarPDFNotaPorIndex(index) {
+    const nota = state.notas[index];
+    if (!nota) return;
+
+    // Criar elemento temporário para o PDF
+    const element = document.createElement('div');
+    element.style.cssText = `
+                background: white;
+                color: black;
+                padding: 40px;
+                font-family: monospace;
+                font-size: 14px;
+                max-width: 800px;
+                margin: 0 auto;
+                white-space: pre-wrap;
+                line-height: 1.6;
+            `;
+
+    let texto = `══════════════════════════════════════════════════\n`;
+    texto += `              NOTA FISCAL #${nota.id}\n`;
+    texto += `══════════════════════════════════════════════════\n\n`;
+    texto += `Data: ${new Date(nota.data).toLocaleString('pt-BR')}\n`;
+    texto += `Cliente: ${nota.cliente}\n`;
+    texto += `Pagamento: ${nota.pagamento}\n`;
+    texto += `──────────────────────────────────────────────────\n\n`;
+    texto += `ITENS:\n\n`;
+    nota.itens.forEach(i => {
+        texto += `  ${i.quantidade}x ${i.nome} - R$ ${i.subtotal.toFixed(2)}\n`;
+    });
+    texto += `\n──────────────────────────────────────────────────\n`;
+    texto += `TOTAL: R$ ${nota.total.toFixed(2)}\n`;
+    texto += `\n══════════════════════════════════════════════════\n`;
+    texto += `       Obrigado pela preferência!\n`;
+    texto += `══════════════════════════════════════════════════\n`;
+
+    element.textContent = texto;
+
+    // Configurar opções do PDF
+    const opt = {
+        margin: 1,
+        filename: `nota_fiscal_${nota.id}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, letterRendering: true },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Gerar PDF
+    html2pdf().set(opt).from(element).save();
+}
+
+function baixarNotaTXT() {
     if (!notaAtualExibindo) return;
     const conteudo = document.getElementById('conteudo-nota').textContent;
     const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
@@ -565,7 +757,212 @@ function baixarNota() {
 }
 
 // ============================================================
-// QR CODE SCANNER
+// RELATÓRIOS
+// ============================================================
+function gerarRelatorio(tipo) {
+    const filtroData = document.getElementById('filtro-data');
+    const resultado = document.getElementById('relatorio-resultado');
+    const agora = new Date();
+    let inicio = new Date();
+    let fim = new Date();
+
+    if (tipo === 'personalizado') {
+        filtroData.style.display = 'block';
+        resultado.innerHTML = '<p style="color:#888;">Selecione as datas e clique em "Gerar Relatório".</p>';
+        return;
+    }
+
+    filtroData.style.display = 'none';
+
+    switch (tipo) {
+        case 'semanal':
+            inicio = new Date(agora);
+            inicio.setDate(agora.getDate() - 7);
+            break;
+        case 'mensal':
+            inicio = new Date(agora);
+            inicio.setMonth(agora.getMonth() - 1);
+            break;
+        case 'anual':
+            inicio = new Date(agora);
+            inicio.setFullYear(agora.getFullYear() - 1);
+            break;
+    }
+
+    gerarRelatorioPorPeriodo(inicio, fim, tipo);
+}
+
+function gerarRelatorioPersonalizado() {
+    const inicio = new Date(document.getElementById('data-inicio').value);
+    const fim = new Date(document.getElementById('data-fim').value);
+
+    if (!inicio || !fim || isNaN(inicio.getTime()) || isNaN(fim.getTime())) {
+        mostrarAlerta('Selecione as datas corretamente!', 'danger');
+        return;
+    }
+
+    if (inicio > fim) {
+        mostrarAlerta('Data inicial não pode ser maior que a data final!', 'danger');
+        return;
+    }
+
+    gerarRelatorioPorPeriodo(inicio, fim, 'personalizado');
+}
+
+function gerarRelatorioPorPeriodo(inicio, fim, tipo) {
+    const resultado = document.getElementById('relatorio-resultado');
+
+    // Filtrar vendas no período
+    const vendas = state.vendas.filter(v => {
+        const data = new Date(v.data);
+        return data >= inicio && data <= fim;
+    });
+
+    const totalVendas = vendas.length;
+    const faturamento = vendas.reduce((acc, v) => acc + v.total, 0);
+    const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
+
+    // Produtos mais vendidos
+    const produtosVendidos = {};
+    vendas.forEach(v => {
+        v.itens.forEach(item => {
+            if (!produtosVendidos[item.codigo]) {
+                produtosVendidos[item.codigo] = {
+                    nome: item.nome,
+                    quantidade: 0,
+                    total: 0
+                };
+            }
+            produtosVendidos[item.codigo].quantidade += item.quantidade;
+            produtosVendidos[item.codigo].total += item.subtotal;
+        });
+    });
+
+    const topProdutos = Object.values(produtosVendidos)
+        .sort((a, b) => b.quantidade - a.quantidade)
+        .slice(0, 5);
+
+    // Formatar período
+    const periodoLabel = tipo === 'personalizado' 
+        ? `${inicio.toLocaleDateString('pt-BR')} a ${fim.toLocaleDateString('pt-BR')}`
+        : tipo.charAt(0).toUpperCase() + tipo.slice(1);
+
+    // Gerar HTML do relatório
+    let html = `
+                <div class="card" style="background:var(--bg-card);border:2px solid var(--primary);">
+                    <h3 style="color:var(--text-light);">📊 Relatório ${periodoLabel}</h3>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin:16px 0;">
+                        <div style="background:var(--bg-input);padding:16px;border-radius:8px;">
+                            <strong style="color:#888;">Total de Vendas</strong>
+                            <p style="font-size:1.5rem;color:var(--primary-light);">${totalVendas}</p>
+                        </div>
+                        <div style="background:var(--bg-input);padding:16px;border-radius:8px;">
+                            <strong style="color:#888;">Faturamento</strong>
+                            <p style="font-size:1.5rem;color:var(--text-light);">R$ ${faturamento.toFixed(2)}</p>
+                        </div>
+                        <div style="background:var(--bg-input);padding:16px;border-radius:8px;">
+                            <strong style="color:#888;">Ticket Médio</strong>
+                            <p style="font-size:1.5rem;color:var(--secondary-light);">R$ ${ticketMedio.toFixed(2)}</p>
+                        </div>
+                    </div>
+                    <h4 style="color:var(--text-light);margin:16px 0 8px;">🏆 Produtos Mais Vendidos</h4>
+                    ${topProdutos.length > 0 ? `
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">
+                            ${topProdutos.map(p => `
+                                <div style="background:var(--bg-input);padding:12px;border-radius:8px;">
+                                    <strong style="color:var(--text-light);">${p.nome}</strong>
+                                    <p style="color:#888;">${p.quantidade} unidades</p>
+                                    <p style="color:var(--primary-light);">R$ ${p.total.toFixed(2)}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p style="color:#888;">Nenhum produto vendido neste período.</p>'}
+                    <div style="margin-top:16px;">
+                        <button class="btn btn-primary btn-sm" onclick="gerarPDFRelatorio(${JSON.stringify(vendas).replace(/"/g, '&quot;')}, '${periodoLabel}')">📄 Gerar PDF</button>
+                        <button class="btn btn-secondary btn-sm" onclick="exportarRelatorioCSV(${JSON.stringify(vendas).replace(/"/g, '&quot;')}, '${periodoLabel}')">📊 Exportar CSV</button>
+                    </div>
+                </div>
+            `;
+
+    resultado.innerHTML = html;
+}
+
+function gerarPDFRelatorio(vendas, periodo) {
+    const element = document.createElement('div');
+    element.style.cssText = `
+                background: white;
+                color: black;
+                padding: 40px;
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                line-height: 1.6;
+            `;
+
+    let html = `
+                <h1 style="text-align:center;">📊 Relatório de Vendas</h1>
+                <p style="text-align:center;color:#666;">Período: ${periodo}</p>
+                <hr style="margin:20px 0;">
+                <h2>Resumo</h2>
+                <p><strong>Total de Vendas:</strong> ${vendas.length}</p>
+                <p><strong>Faturamento:</strong> R$ ${vendas.reduce((acc, v) => acc + v.total, 0).toFixed(2)}</p>
+                <p><strong>Ticket Médio:</strong> R$ ${vendas.length > 0 ? (vendas.reduce((acc, v) => acc + v.total, 0) / vendas.length).toFixed(2) : '0.00'}</p>
+                <hr style="margin:20px 0;">
+                <h2>Lista de Vendas</h2>
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                    <thead>
+                        <tr style="background:#f0f0f0;">
+                            <th style="border:1px solid #ddd;padding:8px;text-align:left;">ID</th>
+                            <th style="border:1px solid #ddd;padding:8px;text-align:left;">Cliente</th>
+                            <th style="border:1px solid #ddd;padding:8px;text-align:left;">Total</th>
+                            <th style="border:1px solid #ddd;padding:8px;text-align:left;">Data</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${vendas.map(v => `
+                            <tr>
+                                <td style="border:1px solid #ddd;padding:8px;">#${v.id}</td>
+                                <td style="border:1px solid #ddd;padding:8px;">${v.cliente}</td>
+                                <td style="border:1px solid #ddd;padding:8px;">R$ ${v.total.toFixed(2)}</td>
+                                <td style="border:1px solid #ddd;padding:8px;">${new Date(v.data).toLocaleDateString('pt-BR')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <p style="text-align:center;color:#666;margin-top:20px;">Gerado em ${new Date().toLocaleString('pt-BR')}</p>
+            `;
+
+    element.innerHTML = html;
+
+    const opt = {
+        margin: 1,
+        filename: `relatorio_${periodo.replace(/\s/g, '_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, letterRendering: true },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save();
+}
+
+function exportarRelatorioCSV(vendas, periodo) {
+    let csv = 'ID,Cliente,Total,Data,Itens\n';
+    vendas.forEach(v => {
+        const itens = v.itens.map(i => `${i.quantidade}x ${i.nome}`).join('; ');
+        csv += `${v.id},"${v.cliente}",${v.total.toFixed(2)},${new Date(v.data).toLocaleDateString('pt-BR')},"${itens}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio_${periodo.replace(/\s/g, '_')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// QR CODE / BARCODE SCANNER
 // ============================================================
 function abrirScanner(campoId) {
     state.scannerCampoDestino = campoId;
@@ -586,7 +983,7 @@ let scannerDetector = null;
 async function iniciarScanner() {
     try {
         if (!('BarcodeDetector' in window)) {
-            document.getElementById('scanner-status').textContent = '❌ Seu navegador não suporta leitura de QR Code. Use um navegador atualizado (Chrome/Edge).';
+            document.getElementById('scanner-status').textContent = '❌ Seu navegador não suporta leitura de código. Use Chrome/Edge atualizado.';
             return;
         }
 
@@ -599,13 +996,13 @@ async function iniciarScanner() {
         video.srcObject = stream;
         await video.play();
 
-        document.getElementById('scanner-status').textContent = '📷 Câmera ativa. Aponte para um QR Code...';
+        document.getElementById('scanner-status').textContent = '📷 Câmera ativa. Aponte para um código...';
 
         scannerDetector = new BarcodeDetector({
-            formats: ['qr_code']
+            formats: ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'codabar', 'upc_a', 'upc_e']
         });
 
-        detectarQR();
+        detectarCodigo();
     } catch (err) {
         console.error('Erro ao iniciar scanner:', err);
         document.getElementById('scanner-status').textContent = `❌ Erro ao acessar câmera: ${err.message}`;
@@ -614,7 +1011,7 @@ async function iniciarScanner() {
 
 let scannerRodando = false;
 
-function detectarQR() {
+function detectarCodigo() {
     if (!scannerStream) return;
     scannerRodando = true;
 
@@ -631,6 +1028,8 @@ function detectarQR() {
 
                 if (state.scannerCampoDestino) {
                     document.getElementById(state.scannerCampoDestino).value = codigo;
+                    
+                    // Se for no estoque, carregar produto automaticamente
                     if (state.scannerCampoDestino === 'prod-codigo') {
                         const produto = state.produtos[codigo];
                         if (produto) {
@@ -646,14 +1045,25 @@ function detectarQR() {
                             mostrarAlertaEstoque('Produto não encontrado. Cadastre-o!', 'warning');
                         }
                     }
-                    if (state.scannerCampoDestino === 'venda-codigo') {
+                    
+                    // Se for na venda, adicionar item
+                    if (state.scannerCampoDestino === 'venda-codigo' || state.scannerCampoDestino === 'venda-busca') {
                         const produto = state.produtos[codigo];
                         if (produto) {
-                            document.getElementById('venda-codigo').value = codigo;
-                            document.getElementById('venda-qtd').value = '1';
+                            document.getElementById('venda-busca').value = codigo;
                             adicionarItemVenda();
                         } else {
-                            mostrarAlertaVenda('Produto não encontrado!', 'danger');
+                            // Buscar por nome
+                            const produtos = Object.values(state.produtos);
+                            const encontrado = produtos.find(p => 
+                                p.nome.toLowerCase().includes(codigo.toLowerCase())
+                            );
+                            if (encontrado) {
+                                document.getElementById('venda-busca').value = encontrado.codigo;
+                                adicionarItemVenda();
+                            } else {
+                                mostrarAlertaVenda('Produto não encontrado!', 'danger');
+                            }
                         }
                     }
                 }
@@ -731,13 +1141,16 @@ function init() {
     document.getElementById('filtro-estoque').addEventListener('input', renderizarEstoque);
     document.getElementById('filtro-notas').addEventListener('input', renderizarNotas);
 
+    // Evento para mostrar/esconder campo de troco
+    document.getElementById('venda-pagamento').addEventListener('change', calcularTrocoJuros);
+
     atualizarDashboard();
     renderizarEstoque();
     renderizarVendasRapidas();
     renderizarNotas();
     renderizarCarrinho();
 
-    console.log('🚀 Sistema de Mercadinho iniciado!');
+    console.log('🚀 Sistema de Mercadinho Melhorado iniciado!');
 }
 
 document.addEventListener('DOMContentLoaded', init);

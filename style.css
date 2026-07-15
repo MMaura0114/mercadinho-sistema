@@ -36,7 +36,6 @@ body {
     overflow-x: hidden;
 }
 
-/* Scrollbar personalizada */
 ::-webkit-scrollbar {
     width: 8px;
 }
@@ -52,7 +51,7 @@ body {
 }
 
 /* ============================================
-   HEADER / TOPO
+   HEADER
    ============================================ */
 .header {
     background: linear-gradient(135deg, var(--primary-dark), var(--primary));
@@ -75,10 +74,6 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-}
-
-.header h1 span {
-    font-size: 1.8rem;
 }
 
 .header-actions {
@@ -122,7 +117,7 @@ body {
 }
 
 /* ============================================
-   TELAS (PÁGINAS)
+   TELAS
    ============================================ */
 .page {
     display: none;
@@ -185,14 +180,8 @@ body {
     gap: 24px;
 }
 
-.grid-3 {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-}
-
 /* ============================================
-   FORMULÁRIOS E INPUTS
+   FORMULÁRIOS
    ============================================ */
 .form-group {
     margin-bottom: 16px;
@@ -235,6 +224,9 @@ body {
     gap: 16px;
 }
 
+/* ============================================
+   BOTÕES
+   ============================================ */
 .btn {
     padding: 10px 24px;
     border: none;
@@ -299,11 +291,6 @@ body {
     font-size: 0.8rem;
 }
 
-.btn-block {
-    width: 100%;
-    justify-content: center;
-}
-
 /* ============================================
    TABELAS
    ============================================ */
@@ -341,6 +328,9 @@ table .empty-row td {
     font-style: italic;
 }
 
+/* ============================================
+   STATUS BADGES
+   ============================================ */
 .status-badge {
     display: inline-block;
     padding: 2px 12px;
@@ -363,7 +353,7 @@ table .empty-row td {
 }
 
 /* ============================================
-   MODAL / OVERLAY
+   MODAL
    ============================================ */
 .modal-overlay {
     display: none;
@@ -421,7 +411,7 @@ table .empty-row td {
 }
 
 /* ============================================
-   NOTIFICAÇÕES / ALERTAS
+   ALERTAS
    ============================================ */
 .alert {
     padding: 14px 20px;
@@ -461,7 +451,7 @@ table .empty-row td {
 }
 
 /* ============================================
-   QR SCANNER ÁREA
+   QR SCANNER
    ============================================ */
 #scanner-container {
     width: 100%;
@@ -526,6 +516,35 @@ table .empty-row td {
 }
 
 /* ============================================
+   SUGESTÕES DE PRODUTOS
+   ============================================ */
+#sugestoes-produtos {
+    background: var(--bg-input);
+    border-radius: 8px;
+    margin-top: 4px;
+    max-height: 150px;
+    overflow-y: auto;
+    display: none;
+    border: 2px solid var(--border);
+}
+
+#sugestoes-produtos div {
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: var(--transition);
+    border-bottom: 1px solid var(--border);
+}
+
+#sugestoes-produtos div:hover {
+    background: var(--primary);
+    color: white;
+}
+
+#sugestoes-produtos div:last-child {
+    border-bottom: none;
+}
+
+/* ============================================
    RESPONSIVIDADE
    ============================================ */
 @media (max-width: 768px) {
@@ -542,9 +561,6 @@ table .empty-row td {
         justify-content: center;
     }
     .grid-2 {
-        grid-template-columns: 1fr;
-    }
-    .grid-3 {
         grid-template-columns: 1fr;
     }
     .form-row {
@@ -581,20 +597,6 @@ table .empty-row td {
     table td {
         padding: 6px 10px;
     }
-}
-
-.qr-btn {
-    background: transparent;
-    border: none;
-    color: var(--info-light);
-    cursor: pointer;
-    font-size: 1.2rem;
-    padding: 4px 8px;
-    transition: var(--transition);
-}
-.qr-btn:hover {
-    color: var(--text-light);
-    transform: scale(1.1);
 }
 
 .qtd-display {

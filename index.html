@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sistema de Mercadinho</title>
     <link rel="stylesheet" href="style.css" />
+    <!-- Biblioteca para gerar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -20,6 +22,7 @@
             <button onclick="navegar('estoque')" id="nav-estoque">📦 Estoque</button>
             <button onclick="navegar('vendas')" id="nav-vendas">💰 Vendas</button>
             <button onclick="navegar('notas')" id="nav-notas">🧾 Notas Fiscais</button>
+            <button onclick="navegar('relatorios')" id="nav-relatorios">📈 Relatórios</button>
             <button class="btn-danger" onclick="exportarDados()">💾 Exportar</button>
         </div>
     </header>
@@ -44,6 +47,7 @@
                         <p><strong>Produtos com Estoque Baixo:</strong> <span id="total-baixo">0</span></p>
                         <p><strong>Vendas Realizadas:</strong> <span id="total-vendas">0</span></p>
                         <p><strong>Notas Fiscais Emitidas:</strong> <span id="total-notas">0</span></p>
+                        <p><strong>Faturamento Total:</strong> R$ <span id="faturamento-total">0.00</span></p>
                     </div>
                     <div style="margin-top:16px;">
                         <button class="btn btn-primary btn-sm" onclick="navegar('estoque')">Gerenciar Estoque</button>
@@ -93,8 +97,8 @@
                         <div class="form-group">
                             <label>Código do Produto</label>
                             <div style="display:flex;gap:8px;">
-                                <input type="text" id="prod-codigo" placeholder="Ex: 123 ou QR Code" required style="flex:1;" />
-                                <button type="button" class="btn btn-info btn-sm" onclick="abrirScanner('prod-codigo')">📷 QR</button>
+                                <input type="text" id="prod-codigo" placeholder="Ex: 7891234567890" required style="flex:1;" />
+                                <button type="button" class="btn btn-info btn-sm" onclick="abrirScanner('prod-codigo')">📷 Scanner</button>
                             </div>
                         </div>
                         <div class="form-group">
@@ -159,9 +163,10 @@
                             <label>Cliente</label>
                             <input type="text" id="venda-cliente" placeholder="Nome do cliente (opcional)" />
                         </div>
+
                         <div class="form-group">
                             <label>Forma de Pagamento</label>
-                            <select id="venda-pagamento">
+                            <select id="venda-pagamento" onchange="calcularTrocoJuros()">
                                 <option value="Dinheiro">Dinheiro</option>
                                 <option value="Cartão Débito">Cartão Débito</option>
                                 <option value="Cartão Crédito">Cartão Crédito</option>
@@ -169,15 +174,26 @@
                                 <option value="Transferência">Transferência</option>
                             </select>
                         </div>
+
+                        <!-- Juros para cartão -->
+                        <div id="campo-juros" style="display:none;" class="form-group">
+                            <label>Taxa de Juros da Maquininha (%)</label>
+                            <input type="number" id="venda-juros" placeholder="Ex: 3.5" step="0.1" min="0" value="3.5" oninput="calcularTrocoJuros()" />
+                            <small style="color:#888;">Aplicado apenas para cartão de crédito</small>
+                        </div>
+
                         <div class="form-group">
                             <label>Adicionar Item à Venda</label>
                             <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                                <input type="text" id="venda-codigo" placeholder="Código do produto" style="flex:2;min-width:120px;" />
+                                <input type="text" id="venda-busca" placeholder="🔍 Nome ou código do produto" style="flex:2;min-width:150px;" onkeyup="buscarProdutoVenda(event)" />
                                 <input type="number" id="venda-qtd" placeholder="Qtd" value="1" min="1" style="flex:1;min-width:60px;" />
                                 <button type="button" class="btn btn-secondary btn-sm" onclick="adicionarItemVenda()">➕ Adicionar</button>
-                                <button type="button" class="btn btn-info btn-sm" onclick="abrirScanner('venda-codigo')">📷 QR</button>
+                                <button type="button" class="btn btn-info btn-sm" onclick="abrirScanner('venda-codigo')">📷 Scanner</button>
                             </div>
+                            <!-- Sugestões de produtos -->
+                            <div id="sugestoes-produtos" style="background:var(--bg-input);border-radius:8px;margin-top:4px;max-height:150px;overflow-y:auto;display:none;"></div>
                         </div>
+
                         <div class="table-wrapper" style="max-height:200px;overflow-y:auto;">
                             <table>
                                 <thead>
@@ -194,11 +210,21 @@
                                 </tbody>
                             </table>
                         </div>
+
                         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-top:12px;">
-                            <span style="font-size:1.2rem;font-weight:700;">
-                                Total: R$ <span id="venda-total">0.00</span>
-                            </span>
+                            <div>
+                                <span style="font-size:1.2rem;font-weight:700;">
+                                    Total: R$ <span id="venda-total">0.00</span>
+                                </span>
+                            </div>
                             <button type="submit" class="btn btn-primary">✅ Finalizar Venda</button>
+                        </div>
+
+                        <!-- Campo para calcular troco -->
+                        <div id="campo-troco" style="display:none;margin-top:12px;" class="form-group">
+                            <label>Valor Recebido (R$)</label>
+                            <input type="number" id="venda-recebido" placeholder="0.00" step="0.01" min="0" oninput="calcularTrocoJuros()" />
+                            <div id="resultado-troco" style="margin-top:8px;font-weight:700;color:var(--primary-light);"></div>
                         </div>
                     </form>
                 </div>
@@ -241,6 +267,40 @@
             </div>
         </div>
 
+        <!-- ==========================================
+        PÁGINA: RELATÓRIOS
+        ========================================== -->
+        <div id="page-relatorios" class="page">
+            <div class="card">
+                <div class="card-title">📈 Relatórios Gerenciais</div>
+                
+                <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
+                    <button class="btn btn-primary" onclick="gerarRelatorio('semanal')">📅 Semanal</button>
+                    <button class="btn btn-secondary" onclick="gerarRelatorio('mensal')">📅 Mensal</button>
+                    <button class="btn btn-info" onclick="gerarRelatorio('anual')">📅 Anual</button>
+                    <button class="btn btn-outline" onclick="gerarRelatorio('personalizado')">📅 Personalizado</button>
+                </div>
+
+                <div id="filtro-data" style="display:none;margin-bottom:16px;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Data Inicial</label>
+                            <input type="date" id="data-inicio" />
+                        </div>
+                        <div class="form-group">
+                            <label>Data Final</label>
+                            <input type="date" id="data-fim" />
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="gerarRelatorioPersonalizado()">📊 Gerar Relatório</button>
+                </div>
+
+                <div id="relatorio-resultado">
+                    <p style="color:#888;">Selecione um período para gerar o relatório.</p>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- ============================================
@@ -255,23 +315,24 @@
             <div id="conteudo-nota" style="background:#0a0a1a;padding:20px;border-radius:8px;font-family:monospace;font-size:0.9rem;white-space:pre-wrap;max-height:500px;overflow-y:auto;color:#a0a0a0;border:1px solid var(--border);">
             </div>
             <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
-                <button class="btn btn-primary btn-sm" onclick="imprimirNota()">🖨️ Imprimir</button>
-                <button class="btn btn-secondary btn-sm" onclick="baixarNota()">💾 Baixar TXT</button>
+                <button class="btn btn-primary btn-sm" onclick="gerarPDFNota()">📄 PDF</button>
+                <button class="btn btn-secondary btn-sm" onclick="baixarNotaTXT()">💾 Baixar TXT</button>
+                <button class="btn btn-info btn-sm" onclick="imprimirNota()">🖨️ Imprimir</button>
                 <button class="btn btn-outline btn-sm" onclick="fecharModalNota()">Fechar</button>
             </div>
         </div>
     </div>
 
     <!-- ============================================
-    MODAL: QR CODE SCANNER
+    MODAL: QR CODE / BARCODE SCANNER
     ============================================ -->
     <div class="modal-overlay" id="modalScanner">
         <div class="modal" style="max-width:450px;">
             <div class="modal-header">
-                <h2>📷 Leitor de QR Code</h2>
+                <h2>📷 Leitor de Código</h2>
                 <button class="modal-close" onclick="fecharScanner()">✕</button>
             </div>
-            <p style="margin-bottom:12px;color:#888;">Aponte a câmera para o código QR do produto.</p>
+            <p style="margin-bottom:12px;color:#888;">Aponte a câmera para o código de barras ou QR Code.</p>
             <div id="scanner-container">
                 <video id="scanner-video" autoplay playsinline></video>
                 <div class="scan-overlay">
