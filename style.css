@@ -618,3 +618,19 @@ table .empty-row td {
     gap: 6px;
     flex-wrap: wrap;
 }
+
+/* Estilos para a tabela de margem de lucro */
+#tabela-lucro td {
+    font-size: 0.9rem;
+}
+
+#tabela-lucro tr:hover td {
+    background: rgba(76, 175, 80, 0.1);
+}
+
+/* Estilos para os cards de sugestão de preço */
+#sugestao-precos .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}

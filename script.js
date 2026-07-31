@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * SISTEMA DE MERCADINHO - VERSÃO CORRIGIDA
+ * SISTEMA DE MERCADINHO - VERSÃO COMPLETA COM MARGEM DE LUCRO
  * ============================================================
  */
 
@@ -54,12 +54,20 @@ function navegar(pagina) {
     document.getElementById('page-' + pagina).classList.add('active');
 
     if (pagina === 'dashboard') atualizarDashboard();
-    if (pagina === 'estoque') renderizarEstoque();
+    if (pagina === 'estoque') {
+        renderizarEstoque();
+        renderizarTabelaLucro();
+    }
     if (pagina === 'vendas') {
         renderizarVendasRapidas();
         renderizarCarrinho();
     }
     if (pagina === 'notas') renderizarNotas();
+    if (pagina === 'lucro') {
+        carregarProdutosLucro();
+        renderizarTabelaLucro();
+        limparFormLucro();
+    }
 
     fecharModalNota();
     fecharScanner();
@@ -90,6 +98,16 @@ function mostrarAlertaEstoque(mensagem, tipo = 'info') {
 
 function mostrarAlertaVenda(mensagem, tipo = 'info') {
     const el = document.getElementById('alertVenda');
+    el.textContent = mensagem;
+    el.className = 'alert alert-' + tipo + ' show';
+    clearTimeout(el._timeout);
+    el._timeout = setTimeout(() => {
+        el.classList.remove('show');
+    }, 4000);
+}
+
+function mostrarAlertaLucro(mensagem, tipo = 'info') {
+    const el = document.getElementById('alertLucro');
     el.textContent = mensagem;
     el.className = 'alert alert-' + tipo + ' show';
     clearTimeout(el._timeout);
@@ -184,6 +202,7 @@ function salvarProduto(event) {
     limparFormProduto();
     renderizarEstoque();
     atualizarDashboard();
+    renderizarTabelaLucro();
 
     mostrarAlertaEstoque(`Produto "${nome}" salvo com sucesso!`, 'success');
 }
@@ -212,10 +231,13 @@ function excluirProduto() {
     if (!confirm(`Tem certeza que deseja excluir o produto "${state.produtos[codigo]?.nome}"?`)) return;
 
     delete state.produtos[codigo];
+    delete margensLucro[codigo];
     salvarEstado();
+    salvarMargensLucro();
     limparFormProduto();
     renderizarEstoque();
     atualizarDashboard();
+    renderizarTabelaLucro();
     mostrarAlertaEstoque('Produto excluído com sucesso!', 'success');
 }
 
@@ -264,6 +286,7 @@ function renderizarEstoque() {
                         <td class="actions-cell">
                             <button class="btn btn-info btn-sm" onclick="editarProduto('${p.codigo}')">✏️</button>
                             <button class="btn btn-danger btn-sm" onclick="excluirProdutoDireto('${p.codigo}')">🗑️</button>
+                            <button class="btn btn-secondary btn-sm" onclick="navegar('lucro');setTimeout(()=>{document.getElementById('lucro-produto').value='${p.codigo}';carregarProdutoLucro();},300);">📊</button>
                         </td>
                     </tr>
                 `;
@@ -275,9 +298,12 @@ function excluirProdutoDireto(codigo) {
     if (!p) return;
     if (!confirm(`Excluir "${p.nome}" permanentemente?`)) return;
     delete state.produtos[codigo];
+    delete margensLucro[codigo];
     salvarEstado();
+    salvarMargensLucro();
     renderizarEstoque();
     atualizarDashboard();
+    renderizarTabelaLucro();
     mostrarAlertaEstoque(`"${p.nome}" removido.`, 'success');
 }
 
@@ -315,7 +341,6 @@ function buscarProdutoVenda(event) {
 function selecionarProdutoVenda(codigo) {
     document.getElementById('venda-busca').value = codigo;
     document.getElementById('sugestoes-produtos').style.display = 'none';
-    // Adicionar automaticamente
     adicionarItemVenda();
 }
 
@@ -325,7 +350,6 @@ function selecionarProdutoVenda(codigo) {
 function adicionarItemVenda() {
     const codigoInput = document.getElementById('venda-busca').value.trim();
     
-    // Se o campo estiver vazio, tentar pegar do scanner
     let codigo = codigoInput || document.getElementById('venda-codigo-scanner')?.value?.trim();
     
     const qtd = parseInt(document.getElementById('venda-qtd').value) || 1;
@@ -335,10 +359,8 @@ function adicionarItemVenda() {
         return;
     }
 
-    // Buscar produto por código ou nome
     let produto = state.produtos[codigo];
     if (!produto) {
-        // Buscar por nome
         const produtos = Object.values(state.produtos);
         const encontrado = produtos.find(p => 
             p.nome.toLowerCase().includes(codigo.toLowerCase())
@@ -358,12 +380,6 @@ function adicionarItemVenda() {
         mostrarAlertaVenda('Quantidade deve ser maior que zero.', 'danger');
         return;
     }
-
-    // REMOVIDA A VERIFICAÇÃO DE ESTOQUE - PODE VENDER MESMO COM ESTOQUE BAIXO
-    // if (qtd > produto.quantidade) {
-    //     mostrarAlertaVenda(`Estoque insuficiente! Disponível: ${produto.quantidade}`, 'danger');
-    //     return;
-    // }
 
     const existente = state.vendaAtual.itens.find(i => i.codigo === produto.codigo);
     if (existente) {
@@ -478,34 +494,12 @@ function finalizarVenda(event) {
         return;
     }
 
-    // REMOVIDA A VERIFICAÇÃO DE ESTOQUE - PODE VENDER MESMO COM ESTOQUE BAIXO
-    // for (const item of itens) {
-    //     const produto = state.produtos[item.codigo];
-    //     if (!produto) {
-    //         mostrarAlertaVenda(`Produto "${item.codigo}" não encontrado!`, 'danger');
-    //         return;
-    //     }
-    //     if (item.quantidade > produto.quantidade) {
-    //         mostrarAlertaVenda(`Estoque insuficiente para "${produto.nome}"! Disponível: ${produto.quantidade}`, 'danger');
-    //         return;
-    //     }
-    // }
-
     let total = itens.reduce((acc, i) => acc + i.subtotal, 0);
 
     if (pagamento === 'Cartão Crédito') {
         const juros = parseFloat(document.getElementById('venda-juros').value) || 0;
         total = total * (1 + juros / 100);
     }
-
-    // REMOVIDA A VERIFICAÇÃO DE VALOR MÍNIMO - PODE VENDER QUALQUER VALOR
-    // if (pagamento === 'Dinheiro') {
-    //     const recebido = parseFloat(document.getElementById('venda-recebido').value) || 0;
-    //     if (recebido < total) {
-    //         mostrarAlertaVenda(`Valor insuficiente! Total: R$ ${total.toFixed(2)}`, 'danger');
-    //         return;
-    //     }
-    // }
 
     state.ultimoIdVenda++;
     const venda = {
@@ -518,7 +512,6 @@ function finalizarVenda(event) {
     };
     state.vendas.push(venda);
 
-    // Atualizar estoque (mesmo que fique negativo)
     for (const item of itens) {
         if (state.produtos[item.codigo]) {
             state.produtos[item.codigo].quantidade -= item.quantidade;
@@ -941,6 +934,385 @@ function exportarRelatorioCSV(vendas, periodo) {
 }
 
 // ============================================================
+// MARGEM DE LUCRO
+// ============================================================
+
+// Dados de margem de lucro (armazenados por produto)
+let margensLucro = DB.get('margensLucro', {});
+
+function salvarMargensLucro() {
+    DB.set('margensLucro', margensLucro);
+}
+
+function carregarProdutosLucro() {
+    const select = document.getElementById('lucro-produto');
+    const produtos = Object.values(state.produtos);
+    
+    select.innerHTML = '<option value="">Selecione um produto...</option>';
+    produtos.forEach(p => {
+        select.innerHTML += `<option value="${p.codigo}">${p.codigo} - ${p.nome}</option>`;
+    });
+}
+
+function carregarProdutoLucro() {
+    const codigo = document.getElementById('lucro-produto').value;
+    if (!codigo) {
+        document.getElementById('lucro-custo').value = '';
+        document.getElementById('lucro-venda').value = '';
+        return;
+    }
+    
+    const produto = state.produtos[codigo];
+    if (produto) {
+        document.getElementById('lucro-venda').value = produto.preco.toFixed(2);
+        
+        if (margensLucro[codigo]) {
+            document.getElementById('lucro-custo').value = margensLucro[codigo].custo.toFixed(2);
+            document.getElementById('lucro-qtd').value = margensLucro[codigo].quantidade || 1;
+            document.getElementById('lucro-custos').value = margensLucro[codigo].custosOperacionais || 10;
+        }
+    }
+}
+
+function calcularLucro(event) {
+    event.preventDefault();
+    
+    const codigo = document.getElementById('lucro-produto').value;
+    const custo = parseFloat(document.getElementById('lucro-custo').value);
+    const venda = parseFloat(document.getElementById('lucro-venda').value);
+    const quantidade = parseInt(document.getElementById('lucro-qtd').value) || 1;
+    const custosOp = parseFloat(document.getElementById('lucro-custos').value) || 0;
+    
+    if (!codigo) {
+        mostrarAlertaLucro('Selecione um produto!', 'danger');
+        return;
+    }
+    
+    if (isNaN(custo) || isNaN(venda) || custo <= 0 || venda <= 0) {
+        mostrarAlertaLucro('Preencha os preços de compra e venda corretamente!', 'danger');
+        return;
+    }
+    
+    if (custo >= venda) {
+        mostrarAlertaLucro('Preço de venda deve ser maior que o preço de compra!', 'danger');
+        return;
+    }
+    
+    const lucroBrutoUnitario = venda - custo;
+    const margemBruta = (lucroBrutoUnitario / venda) * 100;
+    
+    const custoOpUnitario = venda * (custosOp / 100);
+    const lucroLiquidoUnitario = lucroBrutoUnitario - custoOpUnitario;
+    const margemLiquida = (lucroLiquidoUnitario / venda) * 100;
+    
+    const lucroBrutoTotal = lucroBrutoUnitario * quantidade;
+    const lucroLiquidoTotal = lucroLiquidoUnitario * quantidade;
+    const faturamentoTotal = venda * quantidade;
+    const custoTotal = custo * quantidade;
+    const custoOpTotal = custoOpUnitario * quantidade;
+    
+    margensLucro[codigo] = {
+        custo: custo,
+        venda: venda,
+        quantidade: quantidade,
+        custosOperacionais: custosOp,
+        margemBruta: margemBruta,
+        margemLiquida: margemLiquida,
+        lucroBrutoUnitario: lucroBrutoUnitario,
+        lucroLiquidoUnitario: lucroLiquidoUnitario,
+        atualizadoEm: new Date().toISOString()
+    };
+    salvarMargensLucro();
+    
+    const sugestoes = gerarSugestoesPreco(custo, custosOp);
+    
+    const resultado = document.getElementById('resultado-lucro');
+    const produto = state.produtos[codigo];
+    
+    let statusClass = 'status-alto';
+    let statusText = 'Excelente';
+    if (margemLiquida < 10) {
+        statusClass = 'status-baixo';
+        statusText = 'Crítico';
+    } else if (margemLiquida < 20) {
+        statusClass = 'status-medio';
+        statusText = 'Baixo';
+    } else if (margemLiquida < 35) {
+        statusClass = 'status-medio';
+        statusText = 'Médio';
+    }
+    
+    resultado.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div style="background:var(--bg-input);padding:12px;border-radius:8px;">
+                <strong style="color:#888;">Produto</strong>
+                <p style="color:var(--text-light);font-size:1.1rem;">${produto?.nome || codigo}</p>
+            </div>
+            <div style="background:var(--bg-input);padding:12px;border-radius:8px;">
+                <strong style="color:#888;">Código</strong>
+                <p style="color:var(--text-light);font-size:1.1rem;">${codigo}</p>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">
+            <div style="background:var(--bg-input);padding:12px;border-radius:8px;">
+                <strong style="color:#888;">Preço de Compra</strong>
+                <p style="color:var(--text-light);">R$ ${custo.toFixed(2)}</p>
+            </div>
+            <div style="background:var(--bg-input);padding:12px;border-radius:8px;">
+                <strong style="color:#888;">Preço de Venda</strong>
+                <p style="color:var(--text-light);">R$ ${venda.toFixed(2)}</p>
+            </div>
+            <div style="background:var(--bg-input);padding:12px;border-radius:8px;">
+                <strong style="color:#888;">Quantidade (mês)</strong>
+                <p style="color:var(--text-light);">${quantidade}</p>
+            </div>
+        </div>
+        <hr style="border-color:var(--border);margin:12px 0;" />
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+            <div style="background:var(--bg-input);padding:12px;border-radius:8px;border-left:4px solid var(--primary);">
+                <strong style="color:#888;">Margem Bruta</strong>
+                <p style="color:var(--primary-light);font-size:1.3rem;font-weight:700;">${margemBruta.toFixed(1)}%</p>
+                <small style="color:#888;">Lucro bruto: R$ ${lucroBrutoUnitario.toFixed(2)}/un</small>
+            </div>
+            <div style="background:var(--bg-input);padding:12px;border-radius:8px;border-left:4px solid var(--secondary);">
+                <strong style="color:#888;">Margem Líquida</strong>
+                <p style="color:var(--secondary-light);font-size:1.3rem;font-weight:700;">${margemLiquida.toFixed(1)}%</p>
+                <small style="color:#888;">Lucro líquido: R$ ${lucroLiquidoUnitario.toFixed(2)}/un</small>
+            </div>
+            <div style="background:var(--bg-input);padding:12px;border-radius:8px;border-left:4px solid var(--info);">
+                <strong style="color:#888;">Lucro Total (mês)</strong>
+                <p style="color:var(--info-light);font-size:1.3rem;font-weight:700;">R$ ${lucroLiquidoTotal.toFixed(2)}</p>
+                <small style="color:#888;">Faturamento: R$ ${faturamentoTotal.toFixed(2)}</small>
+            </div>
+            <div style="background:var(--bg-input);padding:12px;border-radius:8px;border-left:4px solid ${margemLiquida < 20 ? 'var(--danger)' : 'var(--primary)'};">
+                <strong style="color:#888;">Status</strong>
+                <p><span class="status-badge ${statusClass}" style="font-size:1rem;padding:4px 16px;">${statusText}</span></p>
+                <small style="color:#888;">Custos op: ${custosOp}%</small>
+            </div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="salvarMargemNoProduto('${codigo}')">💾 Salvar no Produto</button>
+            <button class="btn btn-info btn-sm" onclick="gerarPDFLucro('${codigo}')">📄 Gerar PDF</button>
+        </div>
+    `;
+    
+    const sugestaoDiv = document.getElementById('sugestao-precos');
+    const produtoNome = produto?.nome || codigo;
+    sugestaoDiv.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+            <div style="background:${sugestoes.minimo.margem < 10 ? 'var(--bg-input)' : 'var(--bg-input)'};padding:16px;border-radius:8px;border-left:4px solid var(--danger);">
+                <strong style="color:var(--danger-light);">⚠️ Preço Mínimo</strong>
+                <p style="font-size:1.4rem;font-weight:700;color:var(--text-light);">R$ ${sugestoes.minimo.preco.toFixed(2)}</p>
+                <small style="color:#888;">Margem: ${sugestoes.minimo.margem.toFixed(1)}% (cobre custos)</small>
+                <p style="color:#888;font-size:0.8rem;margin-top:4px;">${sugestoes.minimo.descricao}</p>
+            </div>
+            <div style="background:var(--bg-input);padding:16px;border-radius:8px;border-left:4px solid var(--secondary);">
+                <strong style="color:var(--secondary-light);">📊 Preço Médio</strong>
+                <p style="font-size:1.4rem;font-weight:700;color:var(--text-light);">R$ ${sugestoes.medio.preco.toFixed(2)}</p>
+                <small style="color:#888;">Margem: ${sugestoes.medio.margem.toFixed(1)}% (mercado)</small>
+                <p style="color:#888;font-size:0.8rem;margin-top:4px;">${sugestoes.medio.descricao}</p>
+            </div>
+            <div style="background:var(--bg-input);padding:16px;border-radius:8px;border-left:4px solid var(--primary);">
+                <strong style="color:var(--primary-light);">⭐ Preço Máximo</strong>
+                <p style="font-size:1.4rem;font-weight:700;color:var(--text-light);">R$ ${sugestoes.maximo.preco.toFixed(2)}</p>
+                <small style="color:#888;">Margem: ${sugestoes.maximo.margem.toFixed(1)}% (lucro ideal)</small>
+                <p style="color:#888;font-size:0.8rem;margin-top:4px;">${sugestoes.maximo.descricao}</p>
+            </div>
+        </div>
+        <div style="margin-top:16px;padding:12px;background:var(--bg-input);border-radius:8px;">
+            <strong style="color:var(--text-light);">💡 Recomendação:</strong>
+            <span style="color:#888;">${sugestoes.recomendacao}</span>
+        </div>
+    `;
+    
+    renderizarTabelaLucro();
+    mostrarAlertaLucro(`Margem calculada para "${produtoNome}"!`, 'success');
+}
+
+function gerarSugestoesPreco(custo, custosOp) {
+    const margemMinima = 10;
+    const margemMedia = 30;
+    const margemMaxima = 50;
+    
+    const precoMinimo = custo / (1 - (custosOp / 100) - (margemMinima / 100));
+    const precoMedio = custo / (1 - (custosOp / 100) - (margemMedia / 100));
+    const precoMaximo = custo / (1 - (custosOp / 100) - (margemMaxima / 100));
+    
+    return {
+        minimo: {
+            preco: precoMinimo,
+            margem: margemMinima,
+            descricao: 'Preço mínimo para não ter prejuízo'
+        },
+        medio: {
+            preco: precoMedio,
+            margem: margemMedia,
+            descricao: 'Preço médio de mercado'
+        },
+        maximo: {
+            preco: precoMaximo,
+            margem: margemMaxima,
+            descricao: 'Preço com margem ideal'
+        },
+        recomendacao: `Sugerimos vender entre R$ ${precoMinimo.toFixed(2)} e R$ ${precoMaximo.toFixed(2)}. O preço médio recomendado é R$ ${precoMedio.toFixed(2)} com margem de ${margemMedia}%.`
+    };
+}
+
+function salvarMargemNoProduto(codigo) {
+    const produto = state.produtos[codigo];
+    if (!produto) {
+        mostrarAlertaLucro('Produto não encontrado!', 'danger');
+        return;
+    }
+    
+    if (!margensLucro[codigo]) {
+        mostrarAlertaLucro('Calcule a margem primeiro!', 'danger');
+        return;
+    }
+    
+    const margem = margensLucro[codigo];
+    state.produtos[codigo].preco = margem.venda;
+    salvarEstado();
+    renderizarEstoque();
+    renderizarTabelaLucro();
+    mostrarAlertaLucro(`Preço do produto "${produto.nome}" atualizado para R$ ${margem.venda.toFixed(2)}`, 'success');
+}
+
+function renderizarTabelaLucro() {
+    const tbody = document.getElementById('tabela-lucro');
+    const produtos = Object.values(state.produtos);
+    const produtosComMargem = produtos.filter(p => margensLucro[p.codigo]);
+    
+    document.getElementById('qtd-produtos-lucro').textContent = produtosComMargem.length;
+    
+    if (produtosComMargem.length === 0) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Nenhum produto com margem calculada.</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = produtosComMargem.map(p => {
+        const m = margensLucro[p.codigo];
+        const margem = m.margemLiquida || 0;
+        
+        let statusClass = 'status-alto';
+        let statusText = 'Excelente';
+        if (margem < 10) {
+            statusClass = 'status-baixo';
+            statusText = 'Crítico';
+        } else if (margem < 20) {
+            statusClass = 'status-medio';
+            statusText = 'Baixo';
+        } else if (margem < 35) {
+            statusClass = 'status-medio';
+            statusText = 'Médio';
+        }
+        
+        return `
+            <tr>
+                <td><strong>${p.codigo}</strong></td>
+                <td>${p.nome}</td>
+                <td>R$ ${p.preco.toFixed(2)}</td>
+                <td>R$ ${m.custo.toFixed(2)}</td>
+                <td style="font-weight:700;color:${margem < 20 ? 'var(--danger-light)' : margem < 35 ? 'var(--secondary-light)' : 'var(--primary-light)'};">${margem.toFixed(1)}%</td>
+                <td>R$ ${m.lucroLiquidoUnitario?.toFixed(2) || (p.preco - m.custo).toFixed(2)}</td>
+                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function limparFormLucro() {
+    document.getElementById('lucro-produto').value = '';
+    document.getElementById('lucro-custo').value = '';
+    document.getElementById('lucro-venda').value = '';
+    document.getElementById('lucro-qtd').value = '1';
+    document.getElementById('lucro-custos').value = '10';
+    document.getElementById('resultado-lucro').innerHTML = '<p style="color:#888;">Selecione um produto e calcule a margem de lucro.</p>';
+    document.getElementById('sugestao-precos').innerHTML = '<p style="color:#888;">Calcule a margem de um produto para ver as sugestões de preço.</p>';
+    document.getElementById('alertLucro').classList.remove('show');
+}
+
+function gerarPDFLucro(codigo) {
+    const produto = state.produtos[codigo];
+    const margem = margensLucro[codigo];
+    if (!produto || !margem) {
+        mostrarAlertaLucro('Produto ou margem não encontrados!', 'danger');
+        return;
+    }
+    
+    const sugestoes = gerarSugestoesPreco(margem.custo, margem.custosOperacionais);
+    
+    const element = document.createElement('div');
+    element.style.cssText = `
+        background: white;
+        color: black;
+        padding: 40px;
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        line-height: 1.6;
+    `;
+    
+    element.innerHTML = `
+        <h1 style="text-align:center;color:#2E7D32;">📊 Análise de Margem de Lucro</h1>
+        <p style="text-align:center;color:#666;">${produto.nome} (${codigo})</p>
+        <hr style="margin:20px 0;">
+        <h2>Resumo</h2>
+        <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:8px;border:1px solid #ddd;"><strong>Preço de Compra</strong></td><td style="padding:8px;border:1px solid #ddd;">R$ ${margem.custo.toFixed(2)}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;"><strong>Preço de Venda</strong></td><td style="padding:8px;border:1px solid #ddd;">R$ ${margem.venda.toFixed(2)}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;"><strong>Margem Bruta</strong></td><td style="padding:8px;border:1px solid #ddd;">${margem.margemBruta.toFixed(1)}%</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;"><strong>Margem Líquida</strong></td><td style="padding:8px;border:1px solid #ddd;">${margem.margemLiquida.toFixed(1)}%</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;"><strong>Lucro Unitário</strong></td><td style="padding:8px;border:1px solid #ddd;">R$ ${margem.lucroLiquidoUnitario.toFixed(2)}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;"><strong>Lucro Mensal (${margem.quantidade} un)</strong></td><td style="padding:8px;border:1px solid #ddd;">R$ ${(margem.lucroLiquidoUnitario * margem.quantidade).toFixed(2)}</td></tr>
+        </table>
+        <hr style="margin:20px 0;">
+        <h2>Sugestão de Preços</h2>
+        <table style="width:100%;border-collapse:collapse;">
+            <tr style="background:#f0f0f0;">
+                <th style="padding:8px;border:1px solid #ddd;text-align:left;">Tipo</th>
+                <th style="padding:8px;border:1px solid #ddd;text-align:left;">Preço</th>
+                <th style="padding:8px;border:1px solid #ddd;text-align:left;">Margem</th>
+                <th style="padding:8px;border:1px solid #ddd;text-align:left;">Descrição</th>
+            </tr>
+            <tr>
+                <td style="padding:8px;border:1px solid #ddd;">⚠️ Mínimo</td>
+                <td style="padding:8px;border:1px solid #ddd;">R$ ${sugestoes.minimo.preco.toFixed(2)}</td>
+                <td style="padding:8px;border:1px solid #ddd;">${sugestoes.minimo.margem.toFixed(1)}%</td>
+                <td style="padding:8px;border:1px solid #ddd;">${sugestoes.minimo.descricao}</td>
+            </tr>
+            <tr>
+                <td style="padding:8px;border:1px solid #ddd;">📊 Médio</td>
+                <td style="padding:8px;border:1px solid #ddd;">R$ ${sugestoes.medio.preco.toFixed(2)}</td>
+                <td style="padding:8px;border:1px solid #ddd;">${sugestoes.medio.margem.toFixed(1)}%</td>
+                <td style="padding:8px;border:1px solid #ddd;">${sugestoes.medio.descricao}</td>
+            </tr>
+            <tr>
+                <td style="padding:8px;border:1px solid #ddd;">⭐ Máximo</td>
+                <td style="padding:8px;border:1px solid #ddd;">R$ ${sugestoes.maximo.preco.toFixed(2)}</td>
+                <td style="padding:8px;border:1px solid #ddd;">${sugestoes.maximo.margem.toFixed(1)}%</td>
+                <td style="padding:8px;border:1px solid #ddd;">${sugestoes.maximo.descricao}</td>
+            </tr>
+        </table>
+        <p style="margin-top:16px;background:#f5f5f5;padding:12px;border-radius:4px;">
+            <strong>💡 Recomendação:</strong> ${sugestoes.recomendacao}
+        </p>
+        <hr style="margin:20px 0;">
+        <p style="text-align:center;color:#666;font-size:12px;">Gerado em ${new Date().toLocaleString('pt-BR')}</p>
+    `;
+    
+    const opt = {
+        margin: 1,
+        filename: `analise_lucro_${codigo}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, letterRendering: true },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+    
+    html2pdf().set(opt).from(element).save();
+}
+
+// ============================================================
 // QR CODE / BARCODE SCANNER
 // ============================================================
 function abrirScanner(campoId) {
@@ -1006,7 +1378,6 @@ function detectarCodigo() {
                 document.getElementById('scanner-status').textContent = `✅ Código lido: ${codigo}`;
 
                 if (state.scannerCampoDestino) {
-                    // Para o campo de estoque
                     if (state.scannerCampoDestino === 'prod-codigo') {
                         document.getElementById(state.scannerCampoDestino).value = codigo;
                         const produto = state.produtos[codigo];
@@ -1024,16 +1395,12 @@ function detectarCodigo() {
                         }
                     }
                     
-                    // Para a venda
                     if (state.scannerCampoDestino === 'venda-busca' || state.scannerCampoDestino === 'venda-codigo-scanner') {
-                        // Preencher o campo de busca com o código lido
                         document.getElementById('venda-busca').value = codigo;
-                        // Buscar o produto e adicionar automaticamente
                         const produto = state.produtos[codigo];
                         if (produto) {
                             adicionarItemVenda();
                         } else {
-                            // Buscar por nome (caso o código seja na verdade um nome)
                             const produtos = Object.values(state.produtos);
                             const encontrado = produtos.find(p => 
                                 p.nome.toLowerCase().includes(codigo.toLowerCase())
@@ -1083,6 +1450,7 @@ function exportarDados() {
         produtos: state.produtos,
         notas: state.notas,
         vendas: state.vendas,
+        margensLucro: margensLucro,
         exportadoEm: new Date().toISOString()
     };
 
@@ -1118,9 +1486,11 @@ function init() {
         console.log('✅ Produtos de exemplo adicionados!');
     }
 
+    // Carregar margens de lucro
+    margensLucro = DB.get('margensLucro', {});
+
     document.getElementById('filtro-estoque').addEventListener('input', renderizarEstoque);
     document.getElementById('filtro-notas').addEventListener('input', renderizarNotas);
-
     document.getElementById('venda-pagamento').addEventListener('change', calcularTrocoJuros);
 
     atualizarDashboard();
@@ -1128,8 +1498,11 @@ function init() {
     renderizarVendasRapidas();
     renderizarNotas();
     renderizarCarrinho();
+    carregarProdutosLucro();
+    renderizarTabelaLucro();
 
     console.log('🚀 Sistema de Mercadinho Melhorado iniciado!');
+    console.log('📊 Aba "Margem de Lucro" disponível!');
 }
 
 document.addEventListener('DOMContentLoaded', init);

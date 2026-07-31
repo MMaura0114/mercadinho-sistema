@@ -23,6 +23,7 @@
             <button onclick="navegar('vendas')" id="nav-vendas">💰 Vendas</button>
             <button onclick="navegar('notas')" id="nav-notas">🧾 Notas Fiscais</button>
             <button onclick="navegar('relatorios')" id="nav-relatorios">📈 Relatórios</button>
+            <button onclick="navegar('lucro')" id="nav-lucro" style="background: rgba(255, 193, 7, 0.3);">📊 Margem</button>
             <button class="btn-danger" onclick="exportarDados()">💾 Exportar</button>
         </div>
     </header>
@@ -52,6 +53,7 @@
                     <div style="margin-top:16px;">
                         <button class="btn btn-primary btn-sm" onclick="navegar('estoque')">Gerenciar Estoque</button>
                         <button class="btn btn-secondary btn-sm" onclick="navegar('vendas')">Nova Venda</button>
+                        <button class="btn btn-info btn-sm" onclick="navegar('lucro')">📊 Ver Margens</button>
                     </div>
                 </div>
 
@@ -299,6 +301,87 @@
 
                 <div id="relatorio-resultado">
                     <p style="color:#888;">Selecione um período para gerar o relatório.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+        PÁGINA: MARGEM DE LUCRO (NOVA ABA)
+        ========================================== -->
+        <div id="page-lucro" class="page">
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">📊 Calculadora de Margem de Lucro</div>
+                    <div id="alertLucro" class="alert"></div>
+                    <form id="formLucro" onsubmit="calcularLucro(event)">
+                        <div class="form-group">
+                            <label>Produto</label>
+                            <select id="lucro-produto" onchange="carregarProdutoLucro()" style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:8px;background:var(--bg-input);color:var(--text-light);">
+                                <option value="">Selecione um produto...</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Preço de Compra (R$)</label>
+                                <input type="number" id="lucro-custo" placeholder="0.00" step="0.01" min="0" required />
+                            </div>
+                            <div class="form-group">
+                                <label>Preço de Venda (R$)</label>
+                                <input type="number" id="lucro-venda" placeholder="0.00" step="0.01" min="0" required />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Quantidade Vendida (mês)</label>
+                            <input type="number" id="lucro-qtd" placeholder="Ex: 100" step="1" min="0" value="1" />
+                        </div>
+                        <div class="form-group">
+                            <label>Custos Operacionais (%)</label>
+                            <input type="number" id="lucro-custos" placeholder="Ex: 15" step="0.1" min="0" value="10" />
+                            <small style="color:#888;">% sobre o preço de venda (aluguel, funcionários, impostos, etc.)</small>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <button type="submit" class="btn btn-primary">📊 Calcular Margem</button>
+                            <button type="button" class="btn btn-outline" onclick="limparFormLucro()">🗑️ Limpar</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">📈 Resultado da Análise</div>
+                    <div id="resultado-lucro">
+                        <p style="color:#888;">Selecione um produto e calcule a margem de lucro.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sugestão de Preços -->
+            <div class="card">
+                <div class="card-title">💡 Sugestão de Preços de Revenda</div>
+                <div id="sugestao-precos">
+                    <p style="color:#888;">Calcule a margem de um produto para ver as sugestões de preço.</p>
+                </div>
+            </div>
+
+            <!-- Tabela de Produtos com Margem -->
+            <div class="card">
+                <div class="card-title">📋 Produtos com Margem de Lucro <span class="badge" id="qtd-produtos-lucro">0</span></div>
+                <div class="table-wrapper" style="max-height:400px;overflow-y:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Produto</th>
+                                <th>Preço Venda</th>
+                                <th>Preço Compra</th>
+                                <th>Margem (%)</th>
+                                <th>Lucro Unitário</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-lucro">
+                            <tr class="empty-row"><td colspan="7">Nenhum produto com margem calculada.</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
