@@ -5,421 +5,692 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sistema de Mercadinho</title>
     <link rel="stylesheet" href="style.css" />
-    <!-- Biblioteca para gerar PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
-    <!-- ============================================
-    HEADER
-    ============================================ -->
-    <header class="header">
-        <h1>
-            <span>🛒</span> Mercadinho <span style="font-size:0.8rem;font-weight:400;color:#a5d6a7;">Sistema de Gestão</span>
-        </h1>
-        <div class="header-actions">
-            <button onclick="navegar('dashboard')" id="nav-dashboard">📊 Dashboard</button>
-            <button onclick="navegar('estoque')" id="nav-estoque">📦 Estoque</button>
-            <button onclick="navegar('vendas')" id="nav-vendas">💰 Vendas</button>
-            <button onclick="navegar('notas')" id="nav-notas">🧾 Notas Fiscais</button>
-            <button onclick="navegar('relatorios')" id="nav-relatorios">📈 Relatórios</button>
-            <button onclick="navegar('lucro')" id="nav-lucro" style="background: rgba(255, 193, 7, 0.3);">📊 Margem</button>
-            <button class="btn-danger" onclick="exportarDados()">💾 Exportar</button>
+    <!-- ============================================================
+    TELA DE LOGIN
+    ============================================================ -->
+<div id="loginScreen" class="login-screen">
+    <div class="login-box">
+        <div class="login-brand">
+            <h1>🛒 <span>Mercadinho</span></h1>
+            <p>Sistema de Gestão Multi-Estabelecimento</p>
         </div>
-    </header>
+        
+        <div id="loginAlert" class="alert"></div>
 
-    <!-- ============================================
-    CONTAINER PRINCIPAL
-    ============================================ -->
-    <div class="container">
+        <!-- ABAS -->
+        <div class="login-tabs">
+            <button class="login-tab active" onclick="switchLoginTab('user')" id="tabUser">👤 Usuário</button>
+            <button class="login-tab" onclick="switchLoginTab('super')" id="tabSuper">🌟 Super Admin</button>
+            <button class="login-tab" onclick="switchLoginTab('cadastro')" id="tabCadastro">📝 Cadastrar</button>
+        </div>
 
-        <!-- ALERTAS GLOBAIS -->
-        <div id="alertGlobal" class="alert"></div>
-
-        <!-- ==========================================
-        PÁGINA: DASHBOARD
-        ========================================== -->
-        <div id="page-dashboard" class="page active">
-            <div class="grid-2">
-                <div class="card">
-                    <div class="card-title">📊 Resumo do Mercadinho</div>
-                    <div id="resumo-dashboard">
-                        <p><strong>Total de Produtos:</strong> <span id="total-produtos">0</span></p>
-                        <p><strong>Produtos com Estoque Baixo:</strong> <span id="total-baixo">0</span></p>
-                        <p><strong>Vendas Realizadas:</strong> <span id="total-vendas">0</span></p>
-                        <p><strong>Notas Fiscais Emitidas:</strong> <span id="total-notas">0</span></p>
-                        <p><strong>Faturamento Total:</strong> R$ <span id="faturamento-total">0.00</span></p>
-                    </div>
-                    <div style="margin-top:16px;">
-                        <button class="btn btn-primary btn-sm" onclick="navegar('estoque')">Gerenciar Estoque</button>
-                        <button class="btn btn-secondary btn-sm" onclick="navegar('vendas')">Nova Venda</button>
-                        <button class="btn btn-info btn-sm" onclick="navegar('lucro')">📊 Ver Margens</button>
+        <!-- PAINEL USUÁRIO -->
+        <div id="loginUserPanel" class="login-panel active">
+            <form id="loginFormUser" onsubmit="handleLoginUser(event)">
+                <div class="form-group">
+                    <label>🏪 Estabelecimento</label>
+                    <select id="loginEstabelecimento" required>
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>👤 Usuário</label>
+                    <input type="text" id="loginUsuario" placeholder="Digite seu usuário" required />
+                </div>
+                <div class="form-group password-field">
+                    <label>🔒 Senha</label>
+                    <div class="password-input-group">
+                        <input type="password" id="loginSenha" placeholder="Digite sua senha" required />
+                        <button type="button" class="btn-toggle-password" onclick="togglePassword('loginSenha', this)">👁️</button>
                     </div>
                 </div>
+                <button type="submit" class="btn btn-primary btn-block">🔑 Entrar</button>
+            </form>
+        </div>
 
-                <div class="card">
-                    <div class="card-title">⚠️ Alertas de Estoque <span class="badge">Baixo</span></div>
-                    <div id="alertas-estoque">
-                        <p style="color:#888;">Carregando...</p>
-                    </div>
-                </div>
+        <!-- PAINEL SUPER ADMIN -->
+        <div id="loginSuperPanel" class="login-panel">
+            <div style="text-align:center;margin-bottom:14px;">
+                <span style="font-size:1.8rem;">🌟</span>
+                <p style="color:var(--secondary-light);font-weight:600;font-size:0.9rem;">Acesso Administrador do Sistema</p>
+                <p style="color:var(--text-muted);font-size:0.75rem;">Apenas para o desenvolvedor/super administrador</p>
             </div>
-
-            <div class="card">
-                <div class="card-title">📦 Últimos Produtos Cadastrados</div>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Código</th>
-                                <th>Nome</th>
-                                <th>Preço</th>
-                                <th>Quantidade</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ultimos-produtos">
-                            <tr class="empty-row"><td colspan="5">Nenhum produto cadastrado ainda.</td></tr>
-                        </tbody>
-                    </table>
+            <form id="loginFormSuper" onsubmit="handleLoginSuper(event)">
+                <div class="form-group">
+                    <label>👤 Usuário Super Admin</label>
+                    <input type="text" id="loginSuperUsuario" placeholder="Usuário do Super Admin" required />
                 </div>
+                <div class="form-group password-field">
+                    <label>🔒 Senha Super Admin</label>
+                    <div class="password-input-group">
+                        <input type="password" id="loginSuperSenha" placeholder="Digite sua senha" required />
+                        <button type="button" class="btn-toggle-password" onclick="togglePassword('loginSuperSenha', this)">👁️</button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-secondary btn-block">🌟 Entrar como Super Admin</button>
+            </form>
+            <div class="login-hint">
+                <small>🔐 Credenciais definidas pelo desenvolvedor</small>
             </div>
         </div>
 
-        <!-- ==========================================
-        PÁGINA: ESTOQUE
-        ========================================== -->
-        <div id="page-estoque" class="page">
-            <div class="grid-2">
-                <div class="card">
-                    <div class="card-title" id="estoque-title">📦 Cadastrar Produto</div>
-                    <div id="alertEstoque" class="alert"></div>
-                    <form id="formProduto" onsubmit="salvarProduto(event)">
-                        <input type="hidden" id="edit-codigo" value="" />
-                        <div class="form-group">
-                            <label>Código do Produto</label>
-                            <div style="display:flex;gap:8px;">
-                                <input type="text" id="prod-codigo" placeholder="Ex: 7891234567890" required style="flex:1;" />
-                                <button type="button" class="btn btn-info btn-sm" onclick="abrirScanner('prod-codigo')">📷 Scanner</button>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Nome do Produto</label>
-                            <input type="text" id="prod-nome" placeholder="Ex: Arroz 5kg" required />
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Preço (R$)</label>
-                                <input type="number" id="prod-preco" placeholder="0.00" step="0.01" min="0" required />
-                            </div>
-                            <div class="form-group">
-                                <label>Quantidade em Estoque</label>
-                                <input type="number" id="prod-qtd" placeholder="0" min="0" required />
-                            </div>
-                        </div>
-                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                            <button type="submit" class="btn btn-primary" id="btn-salvar-produto">➕ Cadastrar</button>
-                            <button type="button" class="btn btn-outline" onclick="limparFormProduto()">🗑️ Limpar</button>
-                            <button type="button" class="btn btn-danger" id="btn-excluir-produto" style="display:none;" onclick="excluirProduto()">❌ Excluir</button>
-                        </div>
-                    </form>
-                </div>
-
-                <div class="card">
-                    <div class="card-title">📋 Estoque Atual <span class="badge" id="qtd-produtos">0</span></div>
-                    <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
-                        <input type="text" id="filtro-estoque" placeholder="🔍 Filtrar por nome ou código..." style="flex:1;padding:8px 14px;border-radius:8px;border:2px solid var(--border);background:var(--bg-input);color:var(--text-light);" />
-                        <button class="btn btn-sm btn-outline" onclick="renderizarEstoque()">🔄 Atualizar</button>
-                    </div>
-                    <div class="table-wrapper" style="max-height:400px;overflow-y:auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Código</th>
-                                    <th>Nome</th>
-                                    <th>Preço</th>
-                                    <th>Qtd</th>
-                                    <th>Status</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabela-estoque">
-                                <tr class="empty-row"><td colspan="6">Nenhum produto no estoque.</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+        <!-- PAINEL CADASTRO -->
+        <div id="loginCadastroPanel" class="login-panel">
+            <div style="text-align:center;margin-bottom:14px;">
+                <span style="font-size:1.8rem;">📝</span>
+                <p style="color:var(--primary-light);font-weight:600;font-size:0.9rem;">Cadastre seu Estabelecimento</p>
+                <p style="color:var(--text-muted);font-size:0.75rem;">✅ Após o cadastro, você já pode fazer login imediatamente!</p>
             </div>
+            <form id="cadastroForm" onsubmit="cadastrarEstabelecimentoProprietario(event)">
+                <div class="form-group">
+                    <label>🏪 Nome do Estabelecimento *</label>
+                    <input type="text" id="cadastroNome" placeholder="Ex: Mercadinho do João" required />
+                </div>
+                <div class="form-group">
+                    <label>📋 CNPJ</label>
+                    <input type="text" id="cadastroCnpj" placeholder="Ex: 12.345.678/0001-90" />
+                    <small>Opcional</small>
+                </div>
+                <div class="form-group">
+                    <label>📍 Endereço</label>
+                    <input type="text" id="cadastroEndereco" placeholder="Ex: Rua das Flores, 123 - Centro" />
+                    <small>Opcional</small>
+                </div>
+                <div class="form-group">
+                    <label>📞 Telefone</label>
+                    <input type="text" id="cadastroTelefone" placeholder="Ex: (11) 99999-9999" />
+                    <small>Opcional</small>
+                </div>
+                <div class="form-group">
+                    <label>👤 Usuário Administrador *</label>
+                    <input type="text" id="cadastroUsuario" placeholder="Ex: joao" required />
+                </div>
+                <div class="form-group password-field">
+                    <label>🔒 Senha *</label>
+                    <div class="password-input-group">
+                        <input type="password" id="cadastroSenha" placeholder="Mínimo 6 caracteres" required />
+                        <button type="button" class="btn-toggle-password" onclick="togglePassword('cadastroSenha', this)">👁️</button>
+                    </div>
+                </div>
+                <div class="form-group password-field">
+                    <label>🔒 Confirmar Senha *</label>
+                    <div class="password-input-group">
+                        <input type="password" id="cadastroConfirmarSenha" placeholder="Confirme sua senha" required />
+                        <button type="button" class="btn-toggle-password" onclick="togglePassword('cadastroConfirmarSenha', this)">👁️</button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">📝 Cadastrar Estabelecimento</button>
+                <div style="margin-top:10px;padding:10px;background:var(--bg-input);border-radius:8px;border:1px solid var(--border);">
+                    <p style="color:var(--text-muted);font-size:0.75rem;">
+                        ✅ Seu estabelecimento será <strong style="color:var(--primary-light);">ativado automaticamente</strong>.
+                        Você poderá fazer login imediatamente após o cadastro.
+                    </p>
+                </div>
+            </form>
         </div>
+    </div>
+</div>
+    <!-- ============================================================
+    SISTEMA PRINCIPAL
+    ============================================================ -->
+    <div id="mainApp" style="display:none;">
 
-        <!-- ==========================================
-        PÁGINA: VENDAS
-        ========================================== -->
-        <div id="page-vendas" class="page">
-            <div class="grid-2">
-                <div class="card">
-                    <div class="card-title">💰 Nova Venda</div>
-                    <div id="alertVenda" class="alert"></div>
-                    <form id="formVenda" onsubmit="finalizarVenda(event)">
-                        <div class="form-group">
-                            <label>Cliente</label>
-                            <input type="text" id="venda-cliente" placeholder="Nome do cliente (opcional)" />
+        <!-- ==================== HEADER ==================== -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1>🛒 <span id="headerEstabelecimento">Mercadinho</span></h1>
+                <span class="header-badge" id="headerNivel">Admin</span>
+            </div>
+            <div class="header-right">
+                <div class="header-user">
+                    <span>👤 <span id="headerUsuario">usuario</span></span>
+                    <span class="header-estab" id="headerEstabNome">Estabelecimento</span>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="handleLogout()">🚪 Sair</button>
+            </div>
+        </header>
+
+        <!-- ==================== NAVEGAÇÃO ==================== -->
+        <nav class="app-nav">
+            <button onclick="navigateTo('dashboard')" class="nav-btn active" data-page="dashboard">📊 Dashboard</button>
+            <button onclick="navigateTo('estoque')" class="nav-btn" data-page="estoque">📦 Estoque</button>
+            <button onclick="navigateTo('vendas')" class="nav-btn" data-page="vendas">💰 Vendas</button>
+            <button onclick="navigateTo('notas')" class="nav-btn" data-page="notas">🧾 Notas</button>
+            <button onclick="navigateTo('relatorios')" class="nav-btn" data-page="relatorios">📈 Relatórios</button>
+            <button onclick="navigateTo('lucro')" class="nav-btn" data-page="lucro">📊 Margem</button>
+            <button onclick="navigateTo('admin')" class="nav-btn admin-btn" data-page="admin" id="navAdmin" style="display:none;">⚙️ Admin</button>
+            <button onclick="navigateTo('config')" class="nav-btn" data-page="config" id="navConfig" style="display:none;">🔐 Config</button>
+        </nav>
+
+        <!-- ==================== CONTEÚDO ==================== -->
+        <main class="app-content">
+
+            <!-- ========== DASHBOARD ========== -->
+            <section id="page-dashboard" class="page active">
+                <div class="page-header">
+                    <h2>📊 Dashboard</h2>
+                    <p>Visão geral do seu estabelecimento</p>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-icon">📦</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="statProdutos">0</span>
+                            <span class="stat-label">Produtos</span>
                         </div>
-
-                        <div class="form-group">
-                            <label>Forma de Pagamento</label>
-                            <select id="venda-pagamento" onchange="calcularTrocoJuros()">
-                                <option value="Dinheiro">Dinheiro</option>
-                                <option value="Cartão Débito">Cartão Débito</option>
-                                <option value="Cartão Crédito">Cartão Crédito</option>
-                                <option value="PIX">PIX</option>
-                                <option value="Transferência">Transferência</option>
-                            </select>
+                    </div>
+                    <div class="stat-card warning">
+                        <span class="stat-icon">⚠️</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="statEstoqueBaixo">0</span>
+                            <span class="stat-label">Estoque Baixo</span>
                         </div>
-
-                        <!-- Juros para cartão -->
-                        <div id="campo-juros" style="display:none;" class="form-group">
-                            <label>Taxa de Juros da Maquininha (%)</label>
-                            <input type="number" id="venda-juros" placeholder="Ex: 3.5" step="0.1" min="0" value="3.5" oninput="calcularTrocoJuros()" />
-                            <small style="color:#888;">Aplicado apenas para cartão de crédito</small>
+                    </div>
+                    <div class="stat-card success">
+                        <span class="stat-icon">💰</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="statVendas">0</span>
+                            <span class="stat-label">Vendas</span>
                         </div>
-
-                        <div class="form-group">
-                            <label>Adicionar Item à Venda</label>
-                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                                <input type="text" id="venda-busca" placeholder="🔍 Nome ou código do produto" style="flex:2;min-width:150px;" onkeyup="buscarProdutoVenda(event)" />
-                                <input type="number" id="venda-qtd" placeholder="Qtd" value="1" min="1" style="flex:1;min-width:60px;" />
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="adicionarItemVenda()">➕ Adicionar</button>
-                                <button type="button" class="btn btn-info btn-sm" onclick="abrirScanner('venda-busca')">📷 Scanner</button>
-                            </div>
-                            <!-- Sugestões de produtos -->
-                            <div id="sugestoes-produtos" style="background:var(--bg-input);border-radius:8px;margin-top:4px;max-height:150px;overflow-y:auto;display:none;"></div>
+                    </div>
+                    <div class="stat-card primary">
+                        <span class="stat-icon">📈</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="statFaturamento">R$ 0,00</span>
+                            <span class="stat-label">Faturamento</span>
                         </div>
-                        
-                        <input type="hidden" id="venda-codigo-scanner" />
-
-                        <div class="table-wrapper" style="max-height:200px;overflow-y:auto;">
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-header"><h3>⚠️ Alertas de Estoque</h3></div>
+                        <div id="alertasEstoque"><p class="text-muted">Carregando...</p></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>📋 Últimos Produtos</h3></div>
+                        <div class="table-scroll">
                             <table>
-                                <thead>
-                                    <tr>
-                                        <th>Código</th>
-                                        <th>Produto</th>
-                                        <th>Qtd</th>
-                                        <th>Subtotal</th>
-                                        <th>Ação</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tabela-venda">
-                                    <tr class="empty-row"><td colspan="5">Nenhum item adicionado.</td></tr>
-                                </tbody>
+                                <thead><tr><th>Código</th><th>Nome</th><th>Preço</th><th>Qtd</th><th>Status</th></tr></thead>
+                                <tbody id="ultimosProdutos"><tr class="empty"><td colspan="5">Nenhum produto</td></tr></tbody>
                             </table>
                         </div>
-
-                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-top:12px;">
-                            <div>
-                                <span style="font-size:1.2rem;font-weight:700;">
-                                    Total: R$ <span id="venda-total">0.00</span>
-                                </span>
-                            </div>
-                            <button type="submit" class="btn btn-primary">✅ Finalizar Venda</button>
-                        </div>
-
-                        <!-- Campo para calcular troco -->
-                        <div id="campo-troco" style="display:none;margin-top:12px;" class="form-group">
-                            <label>Valor Recebido (R$)</label>
-                            <input type="number" id="venda-recebido" placeholder="0.00" step="0.01" min="0" oninput="calcularTrocoJuros()" />
-                            <div id="resultado-troco" style="margin-top:8px;font-weight:700;color:var(--primary-light);"></div>
-                        </div>
-                    </form>
-                </div>
-
-                <div class="card">
-                    <div class="card-title">📋 Últimas Vendas</div>
-                    <div class="table-wrapper" style="max-height:450px;overflow-y:auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Cliente</th>
-                                    <th>Total</th>
-                                    <th>Data</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabela-vendas-rapidas">
-                                <tr class="empty-row"><td colspan="5">Nenhuma venda realizada.</td></tr>
-                            </tbody>
-                        </table>
                     </div>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- ==========================================
-        PÁGINA: NOTAS FISCAIS
-        ========================================== -->
-        <div id="page-notas" class="page">
-            <div class="card">
-                <div class="card-title">🧾 Notas Fiscais Emitidas <span class="badge" id="qtd-notas">0</span></div>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
-                    <input type="text" id="filtro-notas" placeholder="🔍 Buscar por cliente ou produto..." style="flex:1;padding:8px 14px;border-radius:8px;border:2px solid var(--border);background:var(--bg-input);color:var(--text-light);" />
-                    <button class="btn btn-sm btn-outline" onclick="renderizarNotas()">🔄 Atualizar</button>
+            <!-- ========== ESTOQUE ========== -->
+            <section id="page-estoque" class="page">
+                <div class="page-header">
+                    <h2>📦 Gerenciar Estoque</h2>
+                    <p>Cadastre e gerencie seus produtos</p>
                 </div>
-                <div id="lista-notas">
-                    <p style="color:#888;">Nenhuma nota fiscal emitida ainda.</p>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-header"><h3 id="estoqueFormTitle">➕ Novo Produto</h3></div>
+                        <div id="estoqueAlert" class="alert"></div>
+                        <form id="produtoForm" onsubmit="handleSalvarProduto(event)">
+                            <input type="hidden" id="editCodigo" />
+                            <div class="form-group">
+                                <label>Código</label>
+                                <div class="input-group">
+                                    <input type="text" id="prodCodigo" placeholder="Ex: 7891234567890" required />
+                                    <button type="button" class="btn btn-info btn-sm" onclick="openScanner('prodCodigo')">📷</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Nome</label>
+                                <input type="text" id="prodNome" placeholder="Ex: Arroz 5kg" required />
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Preço (R$)</label>
+                                    <input type="number" id="prodPreco" placeholder="0,00" step="0.01" min="0" required />
+                                </div>
+                                <div class="form-group">
+                                    <label>Quantidade</label>
+                                    <input type="number" id="prodQtd" placeholder="0" min="0" required />
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary" id="btnSalvarProduto">➕ Cadastrar</button>
+                                <button type="button" class="btn btn-outline" onclick="limparFormProduto()">🗑️ Limpar</button>
+                                <button type="button" class="btn btn-danger" id="btnExcluirProduto" style="display:none;" onclick="handleExcluirProduto()">❌ Excluir</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>📋 Estoque <span class="badge" id="qtdProdutos">0</span></h3></div>
+                        <div class="search-box">
+                            <input type="text" id="filtroEstoque" placeholder="🔍 Buscar produto..." />
+                            <button class="btn btn-sm btn-outline" onclick="renderizarEstoque()">🔄</button>
+                        </div>
+                        <div class="table-scroll">
+                            <table>
+                                <thead><tr><th>Código</th><th>Nome</th><th>Preço</th><th>Qtd</th><th>Status</th><th>Ações</th></tr></thead>
+                                <tbody id="tabelaEstoque"><tr class="empty"><td colspan="6">Nenhum produto</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- ==========================================
-        PÁGINA: RELATÓRIOS
-        ========================================== -->
-        <div id="page-relatorios" class="page">
-            <div class="card">
-                <div class="card-title">📈 Relatórios Gerenciais</div>
-                
-                <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
-                    <button class="btn btn-primary" onclick="gerarRelatorio('semanal')">📅 Semanal</button>
-                    <button class="btn btn-secondary" onclick="gerarRelatorio('mensal')">📅 Mensal</button>
-                    <button class="btn btn-info" onclick="gerarRelatorio('anual')">📅 Anual</button>
-                    <button class="btn btn-outline" onclick="gerarRelatorio('personalizado')">📅 Personalizado</button>
+            <!-- ========== VENDAS ========== -->
+            <section id="page-vendas" class="page">
+                <div class="page-header">
+                    <h2>💰 Nova Venda</h2>
+                    <p>Registre as vendas do seu estabelecimento</p>
                 </div>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-header"><h3>🛒 Carrinho</h3></div>
+                        <div id="vendaAlert" class="alert"></div>
+                        <form id="vendaForm" onsubmit="handleFinalizarVenda(event)">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Cliente</label>
+                                    <input type="text" id="vendaCliente" placeholder="Nome (opcional)" />
+                                </div>
+                                <div class="form-group">
+                                    <label>Pagamento</label>
+                                    <select id="vendaPagamento" onchange="calcularTrocoJuros()">
+                                        <option value="Dinheiro">Dinheiro</option>
+                                        <option value="Cartão Débito">Cartão Débito</option>
+                                        <option value="Cartão Crédito">Cartão Crédito</option>
+                                        <option value="PIX">PIX</option>
+                                        <option value="Transferência">Transferência</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="campoJuros" style="display:none;" class="form-group">
+                                <label>Taxa da Maquininha (%)</label>
+                                <input type="number" id="vendaJuros" placeholder="Ex: 3.5" step="0.1" min="0" value="3.5" oninput="calcularTrocoJuros()" />
+                            </div>
+                            <div class="form-group">
+                                <label>Adicionar Item</label>
+                                <div class="input-group">
+                                    <input type="text" id="vendaBusca" placeholder="🔍 Código ou nome" onkeyup="buscarProdutoVenda(event)" />
+                                    <input type="number" id="vendaQtd" placeholder="Qtd" value="1" min="1" style="width:70px;" />
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="adicionarItemVenda()">➕</button>
+                                    <button type="button" class="btn btn-info btn-sm" onclick="openScanner('vendaBusca')">📷</button>
+                                </div>
+                                <div id="sugestoesProdutos"></div>
+                            </div>
+                            <div class="table-scroll">
+                                <table>
+                                    <thead><tr><th>Produto</th><th>Qtd</th><th>Subtotal</th><th>Ação</th></tr></thead>
+                                    <tbody id="tabelaVenda"><tr class="empty"><td colspan="4">Nenhum item</td></tr></tbody>
+                                </table>
+                            </div>
+                            <div class="venda-total">
+                                <span>Total:</span>
+                                <span id="vendaTotal">R$ 0,00</span>
+                            </div>
+                            <div id="campoTroco" style="display:none;" class="form-group">
+                                <label>Valor Recebido</label>
+                                <input type="number" id="vendaRecebido" placeholder="0,00" step="0.01" min="0" oninput="calcularTrocoJuros()" />
+                                <div id="resultadoTroco"></div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">✅ Finalizar Venda</button>
+                        </form>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>📋 Últimas Vendas</h3></div>
+                        <div class="table-scroll">
+                            <table>
+                                <thead><tr><th>#</th><th>Cliente</th><th>Total</th><th>Data</th></tr></thead>
+                                <tbody id="tabelaVendasRapidas"><tr class="empty"><td colspan="4">Nenhuma venda</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-                <div id="filtro-data" style="display:none;margin-bottom:16px;">
-                    <div class="form-row">
+            <!-- ========== NOTAS ========== -->
+            <section id="page-notas" class="page">
+                <div class="page-header">
+                    <h2>🧾 Notas Fiscais</h2>
+                    <p>Histórico de notas emitidas</p>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>📋 Notas Emitidas <span class="badge" id="qtdNotas">0</span></h3></div>
+                    <div class="search-box">
+                        <input type="text" id="filtroNotas" placeholder="🔍 Buscar por cliente ou produto..." />
+                        <button class="btn btn-sm btn-outline" onclick="renderizarNotas()">🔄</button>
+                    </div>
+                    <div id="listaNotas"><p class="text-muted">Nenhuma nota fiscal emitida.</p></div>
+                </div>
+            </section>
+
+            <!-- ========== RELATÓRIOS ========== -->
+            <section id="page-relatorios" class="page">
+                <div class="page-header">
+                    <h2>📈 Relatórios</h2>
+                    <p>Análise de desempenho do seu negócio</p>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>📊 Gerar Relatório</h3></div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="gerarRelatorio('semanal')">📅 Semanal</button>
+                        <button class="btn btn-secondary" onclick="gerarRelatorio('mensal')">📅 Mensal</button>
+                        <button class="btn btn-info" onclick="gerarRelatorio('anual')">📅 Anual</button>
+                        <button class="btn btn-outline" onclick="gerarRelatorio('personalizado')">📅 Personalizado</button>
+                    </div>
+                    <div id="filtroData" style="display:none;" class="form-row">
                         <div class="form-group">
                             <label>Data Inicial</label>
-                            <input type="date" id="data-inicio" />
+                            <input type="date" id="dataInicio" />
                         </div>
                         <div class="form-group">
                             <label>Data Final</label>
-                            <input type="date" id="data-fim" />
+                            <input type="date" id="dataFim" />
                         </div>
+                        <button class="btn btn-primary" onclick="gerarRelatorioPersonalizado()">📊 Gerar</button>
                     </div>
-                    <button class="btn btn-primary" onclick="gerarRelatorioPersonalizado()">📊 Gerar Relatório</button>
+                    <div id="relatorioResultado"><p class="text-muted">Selecione um período para gerar o relatório.</p></div>
                 </div>
+            </section>
 
-                <div id="relatorio-resultado">
-                    <p style="color:#888;">Selecione um período para gerar o relatório.</p>
+            <!-- ========== MARGEM DE LUCRO ========== -->
+            <section id="page-lucro" class="page">
+                <div class="page-header">
+                    <h2>📊 Margem de Lucro</h2>
+                    <p>Calcule e acompanhe a rentabilidade dos produtos</p>
                 </div>
-            </div>
-        </div>
-
-        <!-- ==========================================
-        PÁGINA: MARGEM DE LUCRO (NOVA ABA)
-        ========================================== -->
-        <div id="page-lucro" class="page">
-            <div class="grid-2">
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-header"><h3>📊 Calculadora</h3></div>
+                        <div id="lucroAlert" class="alert"></div>
+                        <form id="lucroForm" onsubmit="calcularLucro(event)">
+                            <div class="form-group">
+                                <label>Produto</label>
+                                <select id="lucroProduto" onchange="carregarProdutoLucro()">
+                                    <option value="">Selecione...</option>
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Preço de Compra</label>
+                                    <input type="number" id="lucroCusto" placeholder="0,00" step="0.01" min="0" required />
+                                </div>
+                                <div class="form-group">
+                                    <label>Preço de Venda</label>
+                                    <input type="number" id="lucroVenda" placeholder="0,00" step="0.01" min="0" required />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Qtd Mensal</label>
+                                    <input type="number" id="lucroQtd" placeholder="100" value="1" />
+                                </div>
+                                <div class="form-group">
+                                    <label>Custos Operacionais (%)</label>
+                                    <input type="number" id="lucroCustos" placeholder="15" step="0.1" min="0" value="10" />
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">📊 Calcular</button>
+                        </form>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>📈 Resultado</h3></div>
+                        <div id="resultadoLucro"><p class="text-muted">Calcule a margem de um produto.</p></div>
+                    </div>
+                </div>
                 <div class="card">
-                    <div class="card-title">📊 Calculadora de Margem de Lucro</div>
-                    <div id="alertLucro" class="alert"></div>
-                    <form id="formLucro" onsubmit="calcularLucro(event)">
-                        <div class="form-group">
-                            <label>Produto</label>
-                            <select id="lucro-produto" onchange="carregarProdutoLucro()" style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:8px;background:var(--bg-input);color:var(--text-light);">
-                                <option value="">Selecione um produto...</option>
+                    <div class="card-header"><h3>💡 Sugestão de Preços</h3></div>
+                    <div id="sugestaoPrecos"><p class="text-muted">Calcule a margem para ver as sugestões.</p></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>📋 Produtos com Margem <span class="badge" id="qtdProdutosLucro">0</span></h3></div>
+                    <div class="table-scroll">
+                        <table>
+                            <thead><tr><th>Produto</th><th>Preço Venda</th><th>Preço Compra</th><th>Margem</th><th>Lucro</th><th>Status</th></tr></thead>
+                            <tbody id="tabelaLucro"><tr class="empty"><td colspan="6">Nenhum produto com margem</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== ADMIN ========== -->
+            <section id="page-admin" class="page">
+                <div class="page-header">
+                    <h2>⚙️ Administração</h2>
+                    <p>Gerencie estabelecimentos e usuários do sistema</p>
+                </div>
+                
+                <!-- Seletor de estabelecimento para Super Admin -->
+                <div id="superAdminSelector" style="display:none;margin-bottom:16px;">
+                    <div class="card" style="background:var(--bg-input);border-color:var(--secondary);">
+                        <div class="card-header">
+                            <h3>🏪 Selecionar Estabelecimento</h3>
+                            <span class="badge" style="background:var(--secondary);">Super Admin</span>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <select id="superAdminEstabelecimento" onchange="mudarEstabelecimentoSuperAdmin()" style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:8px;background:var(--bg-input);color:var(--text-light);">
+                                <option value="">Selecione um estabelecimento...</option>
                             </select>
                         </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Preço de Compra (R$)</label>
-                                <input type="number" id="lucro-custo" placeholder="0.00" step="0.01" min="0" required />
+                    </div>
+                </div>
+
+                <!-- Estabelecimentos Pendentes -->
+                <div class="card" id="pendentesCard">
+                    <div class="card-header">
+                        <h3>⏳ Estabelecimentos Pendentes <span class="badge" id="qtdPendentes" style="background:var(--secondary);">0</span></h3>
+                        <span style="color:var(--text-muted);font-size:0.8rem;">Aguardando aprovação</span>
+                    </div>
+                    <div id="pendentesAlert" class="alert"></div>
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>CNPJ</th>
+                                    <th>Endereço</th>
+                                    <th>Telefone</th>
+                                    <th>Usuário</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaPendentes">
+                                <tr class="empty"><td colspan="6">Nenhum estabelecimento pendente</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Estabelecimentos Aprovados -->
+                <div class="card">
+                    <div class="card-header"><h3>🏪 Estabelecimentos <span class="badge" id="qtdEstabelecimentos">0</span></h3></div>
+                    <div id="adminAlert" class="alert"></div>
+                    <div class="grid-2">
+                        <div>
+                            <form id="estabelecimentoForm" onsubmit="cadastrarEstabelecimento(event)">
+                                <div class="form-group">
+                                    <label>Nome</label>
+                                    <input type="text" id="estabNome" placeholder="Ex: Mercadinho do João" required />
+                                </div>
+                                <div class="form-group">
+                                    <label>CNPJ</label>
+                                    <input type="text" id="estabCnpj" placeholder="Ex: 12.345.678/0001-90" />
+                                </div>
+                                <div class="form-group">
+                                    <label>Endereço</label>
+                                    <input type="text" id="estabEndereco" placeholder="Ex: Rua das Flores, 123" />
+                                </div>
+                                <div class="form-group">
+                                    <label>Telefone</label>
+                                    <input type="text" id="estabTelefone" placeholder="Ex: (11) 99999-9999" />
+                                </div>
+                                <button type="submit" class="btn btn-primary">➕ Cadastrar</button>
+                            </form>
+                        </div>
+                        <div class="table-scroll">
+                            <table>
+                                <thead><tr><th>Nome</th><th>CNPJ</th><th>Endereço</th><th>Usuários</th><th>Status</th><th>Ações</th></tr></thead>
+                                <tbody id="tabelaEstabelecimentos"><tr class="empty"><td colspan="6">Nenhum estabelecimento</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Usuários -->
+                <div class="card">
+                    <div class="card-header"><h3>👥 Usuários <span class="badge" id="qtdUsuarios">0</span></h3></div>
+                    <div class="grid-2">
+                        <div>
+                            <form id="usuarioForm" onsubmit="cadastrarUsuario(event)">
+                                <div class="form-group">
+                                    <label>Estabelecimento</label>
+                                    <select id="userEstabelecimento" required>
+                                        <option value="">Selecione...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Usuário</label>
+                                    <input type="text" id="userNome" placeholder="Ex: joao" required />
+                                </div>
+                                <div class="form-group password-field">
+                                    <label>Senha</label>
+                                    <div class="password-input-group">
+                                        <input type="password" id="userSenha" placeholder="Mínimo 6 caracteres" required />
+                                        <button type="button" class="btn-toggle-password" onclick="togglePassword('userSenha', this)">👁️</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Nível</label>
+                                    <select id="userNivel">
+                                        <option value="admin">👑 Administrador</option>
+                                        <option value="usuario">👤 Usuário</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">➕ Cadastrar</button>
+                            </form>
+                        </div>
+                        <div>
+                            <div class="search-box">
+                                <select id="filtroUsuarioEstabelecimento" onchange="renderizarUsuarios()">
+                                    <option value="">Todos os estabelecimentos</option>
+                                </select>
                             </div>
-                            <div class="form-group">
-                                <label>Preço de Venda (R$)</label>
-                                <input type="number" id="lucro-venda" placeholder="0.00" step="0.01" min="0" required />
+                            <div class="table-scroll">
+                                <table>
+                                    <thead><tr><th>Usuário</th><th>Estabelecimento</th><th>Nível</th><th>Ações</th></tr></thead>
+                                    <tbody id="tabelaUsuarios"><tr class="empty"><td colspan="4">Nenhum usuário</td></tr></tbody>
+                                </table>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== CONFIGURAÇÕES ========== -->
+            <section id="page-config" class="page">
+                <div class="page-header">
+                    <h2>🔐 Configurações do Sistema</h2>
+                    <p>Gerencie suas credenciais de Super Admin</p>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🌟 Alterar Credenciais do Super Admin</h3>
+                        <span class="badge" style="background:var(--secondary);">Apenas Super Admin</span>
+                    </div>
+                    <div id="configAlert" class="alert"></div>
+                    <form id="configForm" onsubmit="alterarCredenciaisSuperAdmin(event)">
                         <div class="form-group">
-                            <label>Quantidade Vendida (mês)</label>
-                            <input type="number" id="lucro-qtd" placeholder="Ex: 100" step="1" min="0" value="1" />
+                            <label>👤 Novo Usuário Super Admin</label>
+                            <input type="text" id="configNovoUsuario" placeholder="Digite o novo usuário" required />
+                            <small style="color:var(--text-muted);">Atual: <strong id="configUsuarioAtual">admin_super</strong></small>
                         </div>
-                        <div class="form-group">
-                            <label>Custos Operacionais (%)</label>
-                            <input type="number" id="lucro-custos" placeholder="Ex: 15" step="0.1" min="0" value="10" />
-                            <small style="color:#888;">% sobre o preço de venda (aluguel, funcionários, impostos, etc.)</small>
+                        <div class="form-group password-field">
+                            <label>🔒 Nova Senha</label>
+                            <div class="password-input-group">
+                                <input type="password" id="configNovaSenha" placeholder="Digite a nova senha" required />
+                                <button type="button" class="btn-toggle-password" onclick="togglePassword('configNovaSenha', this)">👁️</button>
+                            </div>
+                            <small style="color:var(--text-muted);">Mínimo 6 caracteres</small>
                         </div>
-                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                            <button type="submit" class="btn btn-primary">📊 Calcular Margem</button>
-                            <button type="button" class="btn btn-outline" onclick="limparFormLucro()">🗑️ Limpar</button>
+                        <div class="form-group password-field">
+                            <label>🔒 Confirmar Nova Senha</label>
+                            <div class="password-input-group">
+                                <input type="password" id="configConfirmarSenha" placeholder="Confirme a nova senha" required />
+                                <button type="button" class="btn-toggle-password" onclick="togglePassword('configConfirmarSenha', this)">👁️</button>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">💾 Salvar Alterações</button>
+                            <button type="button" class="btn btn-outline" onclick="limparFormConfig()">🗑️ Limpar</button>
                         </div>
                     </form>
+                    <div style="margin-top:16px;padding:12px;background:var(--bg-input);border-radius:8px;border:1px solid var(--border);">
+                        <p style="color:var(--text-muted);font-size:0.85rem;">
+                            ⚠️ <strong>Importante:</strong> Guarde suas credenciais em um local seguro. 
+                            Se você perder o acesso, será necessário resetar o sistema.
+                        </p>
+                    </div>
                 </div>
 
                 <div class="card">
-                    <div class="card-title">📈 Resultado da Análise</div>
-                    <div id="resultado-lucro">
-                        <p style="color:#888;">Selecione um produto e calcule a margem de lucro.</p>
+                    <div class="card-header">
+                        <h3>📊 Informações do Sistema</h3>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+                        <div style="background:var(--bg-input);padding:12px;border-radius:8px;">
+                            <strong class="text-muted">Versão</strong>
+                            <p style="color:var(--text-light);">2.4.0</p>
+                        </div>
+                        <div style="background:var(--bg-input);padding:12px;border-radius:8px;">
+                            <strong class="text-muted">Estabelecimentos</strong>
+                            <p style="color:var(--text-light);" id="configQtdEstabelecimentos">0</p>
+                        </div>
+                        <div style="background:var(--bg-input);padding:12px;border-radius:8px;">
+                            <strong class="text-muted">Total de Usuários</strong>
+                            <p style="color:var(--text-light);" id="configQtdUsuarios">0</p>
+                        </div>
+                        <div style="background:var(--bg-input);padding:12px;border-radius:8px;">
+                            <strong class="text-muted">Total de Vendas</strong>
+                            <p style="color:var(--text-light);" id="configQtdVendas">0</p>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Sugestão de Preços -->
-            <div class="card">
-                <div class="card-title">💡 Sugestão de Preços de Revenda</div>
-                <div id="sugestao-precos">
-                    <p style="color:#888;">Calcule a margem de um produto para ver as sugestões de preço.</p>
-                </div>
-            </div>
-
-            <!-- Tabela de Produtos com Margem -->
-            <div class="card">
-                <div class="card-title">📋 Produtos com Margem de Lucro <span class="badge" id="qtd-produtos-lucro">0</span></div>
-                <div class="table-wrapper" style="max-height:400px;overflow-y:auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Código</th>
-                                <th>Produto</th>
-                                <th>Preço Venda</th>
-                                <th>Preço Compra</th>
-                                <th>Margem (%)</th>
-                                <th>Lucro Unitário</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabela-lucro">
-                            <tr class="empty-row"><td colspan="7">Nenhum produto com margem calculada.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
+        </main>
     </div>
 
-    <!-- ============================================
-    MODAL: VISUALIZAR NOTA FISCAL
-    ============================================ -->
-    <div class="modal-overlay" id="modalNota">
-        <div class="modal">
+    <!-- ==================== MODAIS ==================== -->
+    
+    <!-- Modal Nota Fiscal -->
+    <div class="modal" id="modalNota">
+        <div class="modal-content">
             <div class="modal-header">
                 <h2>🧾 Nota Fiscal</h2>
                 <button class="modal-close" onclick="fecharModalNota()">✕</button>
             </div>
-            <div id="conteudo-nota" style="background:#0a0a1a;padding:20px;border-radius:8px;font-family:monospace;font-size:0.9rem;white-space:pre-wrap;max-height:500px;overflow-y:auto;color:#a0a0a0;border:1px solid var(--border);">
-            </div>
-            <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+            <div id="conteudoNota"></div>
+            <div class="modal-footer">
                 <button class="btn btn-primary btn-sm" onclick="gerarPDFNota()">📄 PDF</button>
-                <button class="btn btn-secondary btn-sm" onclick="baixarNotaTXT()">💾 Baixar TXT</button>
+                <button class="btn btn-secondary btn-sm" onclick="baixarNotaTXT()">💾 TXT</button>
                 <button class="btn btn-info btn-sm" onclick="imprimirNota()">🖨️ Imprimir</button>
                 <button class="btn btn-outline btn-sm" onclick="fecharModalNota()">Fechar</button>
             </div>
         </div>
     </div>
 
-    <!-- ============================================
-    MODAL: QR CODE / BARCODE SCANNER
-    ============================================ -->
-    <div class="modal-overlay" id="modalScanner">
-        <div class="modal" style="max-width:450px;">
+    <!-- Modal Scanner -->
+    <div class="modal" id="modalScanner">
+        <div class="modal-content" style="max-width:450px;">
             <div class="modal-header">
                 <h2>📷 Leitor de Código</h2>
                 <button class="modal-close" onclick="fecharScanner()">✕</button>
             </div>
-            <p style="margin-bottom:12px;color:#888;">Aponte a câmera para o código de barras ou QR Code.</p>
-            <div id="scanner-container">
-                <video id="scanner-video" autoplay playsinline></video>
+            <p class="text-muted">Aponte a câmera para o código de barras.</p>
+            <div class="scanner-container">
+                <video id="scannerVideo" autoplay playsinline></video>
                 <div class="scan-overlay">
                     <div class="scan-corner tl"></div>
                     <div class="scan-corner tr"></div>
@@ -427,10 +698,62 @@
                     <div class="scan-corner br"></div>
                 </div>
             </div>
-            <div style="margin-top:12px;text-align:center;">
-                <button class="btn btn-danger btn-sm" onclick="fecharScanner()">Cancelar</button>
+            <div class="scanner-status" id="scannerStatus">Aguardando leitura...</div>
+            <button class="btn btn-danger btn-sm btn-block" onclick="fecharScanner()">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Modal Editar Estabelecimento -->
+    <div class="modal" id="modalEditarEstabelecimento">
+        <div class="modal-content" style="max-width:500px;">
+            <div class="modal-header">
+                <h2>✏️ Editar Estabelecimento</h2>
+                <button class="modal-close" onclick="fecharModalEditarEstabelecimento()">✕</button>
             </div>
-            <p id="scanner-status" style="text-align:center;margin-top:8px;color:var(--info-light);">Aguardando leitura...</p>
+            <div id="editarEstabAlert" class="alert"></div>
+            <form id="editarEstabForm" onsubmit="salvarEdicaoEstabelecimento(event)">
+                <input type="hidden" id="editarEstabId" />
+                <div class="form-group">
+                    <label>🏪 Nome *</label>
+                    <input type="text" id="editarEstabNome" required />
+                </div>
+                <div class="form-group">
+                    <label>📋 CNPJ</label>
+                    <input type="text" id="editarEstabCnpj" />
+                </div>
+                <div class="form-group">
+                    <label>📍 Endereço</label>
+                    <input type="text" id="editarEstabEndereco" />
+                </div>
+                <div class="form-group">
+                    <label>📞 Telefone</label>
+                    <input type="text" id="editarEstabTelefone" />
+                </div>
+                <div class="form-group">
+                    <label>👤 Usuário Administrador</label>
+                    <input type="text" id="editarEstabUsuario" readonly style="background:var(--bg);opacity:0.7;" />
+                </div>
+                <div class="form-group password-field">
+                    <label>🔒 Alterar Senha</label>
+                    <div class="password-input-group">
+                        <input type="password" id="editarEstabSenha" placeholder="Digite a nova senha (opcional)" />
+                        <button type="button" class="btn-toggle-password" onclick="togglePassword('editarEstabSenha', this)">👁️</button>
+                    </div>
+                    <small style="color:var(--text-muted);">Deixe em branco para manter a senha atual</small>
+                </div>
+                <div class="form-group">
+                    <label>📊 Status</label>
+                    <select id="editarEstabStatus">
+                        <option value="ativo">✅ Ativo</option>
+                        <option value="pendente">⏳ Pendente</option>
+                        <option value="inativo">❌ Inativo</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">💾 Salvar</button>
+                    <button type="button" class="btn btn-outline" onclick="fecharModalEditarEstabelecimento()">Cancelar</button>
+                </div>
+            </form>
         </div>
     </div>
 
